@@ -1,11 +1,60 @@
 (
-~root = 31.midicps; // or 32
-~phi = 1.618;
-~lpf = 10000;
-~hpf = 100;
+s.waitForBoot {
+	"config.scd".loadRelative;
 
-"synths/*.scd".loadRelative;
-"synths/*.scd".loadRelative;
+	"synths/*.scd".loadRelative;
+	"fx/*.scd".loadRelative;
 
-"swarm loaded".postln;
+	s.sync;
+
+	"swarm.scd".loadRelative;
+	"pdefs.scd".loadRelative;
+
+	"swarm loaded".postln;
+};
 )
+
+(
+RedMst.clear;
+RedMst.clock = TempoClock(60/60);
+RedMst.quant = 1;
+
+RedTrk2(\drone, RedVol(RedFn({
+	if (~droneSynth.isPlaying) {
+		~droneSynth.rampTo(~droneState, 0.3);
+	} {
+		~droneSynth.xset(~droneState);
+	};
+}, {
+	~droneSynth.closeGate;
+}), { |vol|
+	~droneState.vol = vol;
+	if (~droneSynth.isPlaying) {
+		~droneSynth.rampTo(~droneState, 1/60);
+	};
+}, ~droneState.vol));
+
+RedTrk2(\laser_random, RedVol(Pdef(\laser_random), { |vol|
+	~laserState.vol = vol;
+}, ~laserState.vol));
+
+RedTrk2(\voice_tenor_random, RedVol(Pdef(\voice_tenor_random), { |vol|
+	~tenorState.vol = vol;
+}, ~tenorState.vol));
+
+~score = RedScore([
+	inf, [\laser_random, \voice_tenor_random, \drone],
+]);
+
+// todo: use RedSeq instead
+~video = VideoOSC(NetAddr("127.0.0.1", 133333));
+~sound = SoundTrack(~video, ~score.beats, \beats);
+)
+
+~sound.play(loop: false);
+~sound.nextSection;
+~sound.stop;
+
+~master.gui;
+
+RedMstGUI4()

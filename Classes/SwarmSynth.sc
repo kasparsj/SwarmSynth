@@ -5,6 +5,10 @@ SwarmSynth {
 		^super.newCopyArgs(synthDef, defaultParams, [], []);
     }
 
+	isPlaying {
+		^(this.size > 0);
+	}
+
 	parseParams { |i, params, j|
 		if (params.isFunction) {
 			^params.(i, this.params[i], j);

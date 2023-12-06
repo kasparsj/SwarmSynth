@@ -1,5 +1,5 @@
 SwarmMath {
-	var <>freqs, <>partials, <>variations, <>args;
+	var <>freqs, <>partials, <>variations, <>args, <>vol;
 
 	*freqPartial { |e, mul=1, pow=1, offset=0, add=1|
 		^(e.freq * (add+((e.partial+offset).abs*mul)**pow));
@@ -22,8 +22,8 @@ SwarmMath {
 		^(1.0 / (1 + ((e.p+offset).abs % mod) ** pow));
 	}
 
-	*new { |freqs, partials=0, variations=1, args|
-		^super.newCopyArgs(freqs, partials, variations, Dictionary.newFrom(args.asPairs));
+	*new { |freqs, partials=0, variations=1, args=#[], vol=1|
+		^super.newCopyArgs(freqs, partials, variations, Dictionary.newFrom(args.asPairs), vol);
 	}
 
 	size {
@@ -50,6 +50,7 @@ SwarmMath {
 		event.nf = freqs.size;
 		event.np = event.partials;
 		event.nv = event.variations;
+		event.vol = vol;
 		((params ?? args.keys).asSet -- (excludeParams ?? []).asSet).do { |param|
 			if (args[param].notNil) {
 				result = result.addAll([param, args[param].(event)]);
