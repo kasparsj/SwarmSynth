@@ -287,6 +287,10 @@ SwarmSynth {
 			params = params.addAll([\fadeTime, fadeTime]);
 		};
 		this.set(params, from, to, createNew: false);
+		this.reset(from, to);
+    }
+
+	reset { |from=nil, to=nil|
 		if (from.isNil) {
 			from = 0;
 			to = this.size-1;
@@ -300,7 +304,7 @@ SwarmSynth {
 			};
 		};
 		this.prCleanUp;
-    }
+	}
 
 	prRelease { |i|
 		if (i >= 0 and: { i < this.size }) {

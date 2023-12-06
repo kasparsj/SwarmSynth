@@ -57,4 +57,12 @@ SwarmMath {
 		};
 		^result;
 	}
+
+	putEvent { |event, freqIndex=nil|
+		// todo: how to handle overrides, e.g. freq, amp
+		args.putAll(event);
+		if (freqIndex.notNil) {
+			event.use { freqs[freqIndex] = ~freq.value };
+		};
+	}
 }
