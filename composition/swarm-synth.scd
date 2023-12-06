@@ -1,12 +1,4 @@
 (
-~phi = 1.618;
-~lpf = 10000;
-~hpf = 100;
-if (~swarm.notNil) { ~swarm.release };
-"synths/*.scd".loadRelative;
-)
-
-(
 var m = SwarmMath.new([36.midicps], rrand(20, 30), 20, [
 	freq: { |e| SwarmMath.freqPartial(e, rrand(0.1, 3.0)) },
 	// freq: { SwarmMath.freqPartial(e, 1, rrand(0.1, 3.0)) },
