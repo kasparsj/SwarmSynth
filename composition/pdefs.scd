@@ -18,6 +18,8 @@ Pdef(\laser_random, Pbind(
 	},
 ));
 
+// Pdef(\laser_random).stop;
+
 Pdef(\voice_tenor_random, Pbind(
 	\instrument, \voice_tenor,
 	// \note, Pseq([5, 7, 9, 11], inf),
@@ -42,4 +44,6 @@ Pdef(\voice_tenor_random, Pbind(
 		event;
 	},
 ));
+
+// Pdef(\voice_tenor_random).stop;
 )

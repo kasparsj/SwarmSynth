@@ -16,7 +16,7 @@ s.waitForBoot {
 
 (
 RedMst.clear;
-RedMst.clock = TempoClock(60/60);
+//RedMst.clock = TempoClock(60/60);
 RedMst.quant = 1;
 
 RedTrk2(\drone, RedVol(RedFn({
@@ -43,6 +43,7 @@ RedTrk2(\voice_tenor_random, RedVol(Pdef(\voice_tenor_random), { |vol|
 }, ~tenorState.vol));
 
 ~score = RedScore([
+	inf, [\laser_random, \drone],
 	inf, [\laser_random, \voice_tenor_random, \drone],
 ]);
 

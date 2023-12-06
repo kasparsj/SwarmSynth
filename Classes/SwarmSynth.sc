@@ -1,9 +1,18 @@
 SwarmSynth {
-    var <>synthDef, <>defaultParams, <>synths, <>params, <>rampRoutine;
+    var instrument, <>defaultParams, <group, <synths, <params, <rampRoutine;
 
     *new { |synthDef, defaultParams|
-		^super.newCopyArgs(synthDef, defaultParams, [], []);
+		^super.newCopyArgs(synthDef, defaultParams, Group.new, [], []);
     }
+
+	synthDef {
+		^instrument;
+	}
+
+	synthDef_ { |synthDef|
+		instrument = synthDef;
+		this.xset([\instrument, instrument]);
+	}
 
 	isPlaying {
 		^(this.size > 0);
@@ -99,13 +108,13 @@ SwarmSynth {
     prCreateSynth { |i, pairs|
 		var dict, synth, merged;
 		dict = pairs.asDict;
-		synth = dict.removeAt(\instrument) ?? synthDef;
+		synth = dict.removeAt(\instrument) ?? instrument;
 		merged = this.mergePairs(params[i], dict.asPairs);
 		this.prClose(i);
 		this.prResizeParams(i);
 		params[i] = merged;
 		this.prResizeSynths(i);
-		synths[i] = Synth(synthDef, merged);
+		synths[i] = Synth(instrument, merged, group);
 		// synths[i] = Synth.basicNew(synth);
 		NodeWatcher.register(synths[i]);
 		// ^synths[i].newMsg(nil, merged);
@@ -285,6 +294,12 @@ SwarmSynth {
 		};
 	}
 
+	prCloseAll {
+		this.size.do { |i|
+			this.prClose(i);
+		}
+	}
+
     closeGate { |from=nil, to=nil, fadeTime=nil|
 		var params = [\gate, 0];
 		if (fadeTime.notNil) {
@@ -319,14 +334,15 @@ SwarmSynth {
 
 	release { |from=nil, to=nil|
 		if (from.isNil) {
-			from = 0;
-			to = this.size-1;
-		};
-		if (to.isNil) {
-			this.prRelease(from);
+			group.freeAll;
+			this.prCloseAll;
 		} {
-			(from..to).do { |i|
-				this.prRelease(i);
+			if (to.isNil) {
+				this.prRelease(from);
+			} {
+				(from..to).do { |i|
+					this.prRelease(i);
+				};
 			};
 		};
 		this.prCleanUp;
