@@ -1,5 +1,4 @@
 // "synths/*.scd".loadRelative;
-
 (
 var m = SwarmMath.new([62.cpsmidi], 120, 1, [
 	n: { |e| 1 + e.p },
