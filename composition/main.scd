@@ -9,6 +9,7 @@ s.waitForBoot {
 
 	"swarm.scd".loadRelative;
 	"pdefs.scd".loadRelative;
+	"tdefs.scd".loadRelative;
 
 	"swarm loaded".postln;
 };
@@ -35,27 +36,7 @@ RedTrk2(\drone, RedVol(RedFn({
 }, ~droneState.vol));
 
 RedTrk2(\drone_up, RedFn({
-	Tdef(\drone_up, {
-		// change partials from 1 to 50
-		var duration = 30;
-		var startValue = ~droneState.partials;
-		var startTime = thisThread.seconds;
-		var delta = 0;
-		var progress = 0;
-		while ({ progress < 1 }) {
-			var value = progress.linexp(0, 1, startValue, 50).floor;
-			if (~droneState.partials < value) {
-				~droneState.partials = value;
-				~droneState.partials.postln;
-				~droneSynth.rampTo(~droneState, 0.3);
-			};
-			0.5.wait;
-			delta = thisThread.seconds - startTime;
-			progress = delta / duration;
-		};
-		~droneState.variations = 1;
-		~droneSynth.rampTo(~droneState, 0.3);
-	}).play;
+	Tdef(\drone_up).play;
 }, {
 	Tdef(\drone_up).stop;
 }));
