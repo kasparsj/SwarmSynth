@@ -309,17 +309,17 @@ SwarmSynth {
 		this.reset(from, to);
     }
 
+	// reset state without release
 	reset { |from=nil, to=nil|
 		if (from.isNil) {
-			from = 0;
-			to = this.size-1;
-		};
-		// release will happen automatically after fadeTime
-		if (to.isNil) {
-			this.prClose(from);
+			this.prCloseAll;
 		} {
-			(from..to).do { |i, j|
-				this.prClose(i);
+			if (to.isNil) {
+				this.prClose(from);
+			} {
+				(from..to).do { |i, j|
+					this.prClose(i);
+				};
 			};
 		};
 		this.prCleanUp;
