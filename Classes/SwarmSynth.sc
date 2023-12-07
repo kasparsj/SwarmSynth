@@ -1,9 +1,21 @@
 SwarmSynth {
-    var instrument, <>defaultParams, <group, <synths, <params, <rampRoutine;
+    var instrument, <>defaultParams, <>group, <>synths, <>params, <>rampRoutine;
 
     *new { |synthDef, defaultParams|
-		^super.newCopyArgs(synthDef, defaultParams, Group.new, [], []);
+		var inst = super.newCopyArgs(synthDef, defaultParams, Group.new, [], []);
+		inst.init;
+		^inst;
     }
+
+	init {
+		CmdPeriod.add({
+			if (rampRoutine.notNil) {
+				rampRoutine.stop;
+				rampRoutine = nil;
+			};
+			{group = Group.new;}.defer(0.2);
+		});
+	}
 
 	synthDef {
 		^instrument;
@@ -130,7 +142,7 @@ SwarmSynth {
 		^nil;
 	}
 
-	prSet { |i, params, j=0, createNew=true, fadeTime=nil|
+	prUpdate { |i, params, j=0, createNew=true, fadeTime=nil|
 		var parsed;
 		^if (synths[i].isNil or: { synths[i].isPlaying.not }) {
 			if (createNew) {
@@ -185,7 +197,7 @@ SwarmSynth {
 		^to;
 	}
 
-    set { |params, from=nil, to=nil, createNew=true, fadeTime=nil|
+	prSet { |params, from=nil, to=nil, createNew=true, fadeTime=nil|
 		var bundle, parsed, msg;
 		if (params.isKindOf(SwarmMath)) {
 			var m = params;
@@ -200,13 +212,13 @@ SwarmSynth {
 		};
 		bundle = OSCBundle.new;
 		if (to.isNil) {
-			msg = this.prSet(from, params, 0, createNew: createNew, fadeTime: fadeTime);
+			msg = this.prUpdate(from, params, 0, createNew: createNew, fadeTime: fadeTime);
 			if (msg.notNil) {
 				bundle.add(msg);
 			};
 		} {
 			(from..to).do { |i, j|
-				msg = this.prSet(i, params, j, createNew: createNew, fadeTime: fadeTime);
+				msg = this.prUpdate(i, params, j, createNew: createNew, fadeTime: fadeTime);
 				if (msg.notNil) {
 					bundle.add(msg);
 				};
@@ -217,11 +229,21 @@ SwarmSynth {
 		//bundle.schedSend(nil, TempoClock.default, 1);
 		// Server.default.addr.sendClumpedBundles(Server.default.latency, *bundle.messages);
 		// todo: fix error bundle too long
-		bundle.send;
+		// bundle.send;
+	}
+
+    set { |params, from=nil, to=nil, createNew=true, fadeTime=nil|
+		if (rampRoutine.notNil) {
+			^this;
+		};
+		this.prSet(params, from, to, createNew, fadeTime);
 	}
 
 	xset { |params, from=nil, to=nil, fadeTime=nil|
 		var mergedParams;
+		if (rampRoutine.notNil) {
+			^this;
+		};
 		if (params.isKindOf(SwarmMath)) {
 			var m = params;
 			from = 0;
@@ -234,6 +256,7 @@ SwarmSynth {
 		this.set(mergedParams, from, to, fadeTime: fadeTime);
 	}
 
+	// todo: rampTo has a bug - when called again, or xset/set before it completes
 	rampTo { |params, duration=1, curve = \exp, from=nil, to=nil, excludeParams=nil|
 		var startParams, mergedParams;
 		if (params.isKindOf(SwarmMath)) {
@@ -255,12 +278,13 @@ SwarmSynth {
 					var time = thisThread.seconds;
 					var delta = time - startTime;
 					if (delta >= duration) {
-						this.set(params, from, to);
+						this.prSet(params, from, to);
+						rampRoutine = nil;
 						break.value;
 					} {
 						var progress = delta / duration;
 						var rampParams = this.mapParams(startParams, mergedParams, progress, curve, from, to);
-						this.set(rampParams, from, to);
+						this.prSet(rampParams, from, to);
 					};
 					(1.0/30.0).wait;
 				};
