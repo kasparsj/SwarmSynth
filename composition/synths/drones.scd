@@ -12,7 +12,7 @@ SynthDef(\drone, {|out=0, freq=440, gate=1, amp=1, fadeTime=1,
 	amp = (amp * (1.0 - saw) + (saw * LFSaw.kr(sawf, Rand(0, 2.0), amp)));
 	// amp2 = LFNoise1.kr(lfo2, amp2);
 	amp = ((1.0 - mod.sign) + (SinOsc.kr(modf).range(mod, 1) * mod.sign)) * amp;
-	detune = (detune * (1.0 - detunef.sign)) + (LFNoise1.kr(detunef, detune) * detunef.sign);
+	detune = (detune * (1.0 - detunef.sign)) + (LFNoise0.kr(detunef, detune) * detunef.sign);
 	freq = freq + (detune * freq);
 	// phase = Rand(-2pi, 2pi);
 	phase = (phase * (1.0 - phasef.sign)) + (LFNoise1.kr(phasef).range(-2pi, 2pi) * phasef.sign);

@@ -1,15 +1,17 @@
 (
-~droneState = SwarmMath.new([~rootHz*2], 12, 7, [
-	freq: { |e| SwarmMath.freqPartial(e, 1, 1) + e.v },
-	// amp: { |e| SwarmMath.ampPartialRec(e) },
-	// amp: { |e| SwarmMath.ampPartialRecMod(e, 2, 0, 1) },
-	amp: { |e| 1.0 / e.size * e.vol },
-	mod: 0.3,
+~droneState = SwarmMath.new([~rootHz*1], 60, 2, [
+	// freq: { |e| SwarmMath.freqPartial(e, 1, 1) + e.v },
+	freq: { |e| SwarmMath.freqPartial(e, 1, 1) + exprand(0.1, 3.0) },
+	amp: { |e| SwarmMath.ampPartialRec(e, 0, 2) * e.vol },
+	// amp: { |e| SwarmMath.ampPartialRecMod(e, 2, 0, 1) * e.vol },
+	// amp: { |e| 1.0 / e.size * e.vol },
+	mod: 0,
 	modf: 1/22,
-	detune: 0,
-	detunef: 0,
+	detune: 0.02,
+	detunef: 0.1,
 	pulse: 0,
 	saw: 0,
+	// phase: 0,
 	phase: { rrand(-2pi, 2pi) },
 	phasef: 0,
 	pan: { rrand(-1.0, 1.0) },
@@ -21,9 +23,7 @@ if (~droneSynth.isNil) {
 } {
 	if (~droneSynth.isPlaying) {
 		~droneSynth.rampTo(~droneState, 0.3);
-	} {
-		~droneSynth.xset(~droneState);
-	};
+	}
 };
 
 // ~droneSynth.release
