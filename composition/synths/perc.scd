@@ -1,11 +1,11 @@
 (
-SynthDef(\perc, {|out=0, freq=440, detune=0, gate=1, amp=1, pan=0, phase = 0|
+SynthDef(\perc, {|out=0, freq=440, dur=1, detune=0, amp=1, pan=0, phase = 0|
 	var env, sig;
-	env = EnvGen.kr(Env.perc(0.001, 0.3, 1, \lin), gate, doneAction: 2);
+	env = EnvGen.kr(Env.perc(0.001, dur, 1, \lin), 1, doneAction: 2);
 	freq = freq + (detune * freq);
 	sig = SinOsc.ar(freq, phase, amp);
 	sig = Pan2.ar(sig, pan);
-	Out.ar(0, sig * env);
+	Out.ar(out, sig * env);
 }).add;
 
 SynthDef(\laser, {|out=0, n=1, freq=440, f2mul=1.5, hpf=0, dur=1, amp=(-5.dbamp), pan=0, tilt=(-3), comb1=1, comb2=20, dout=0|
@@ -22,6 +22,7 @@ SynthDef(\laser, {|out=0, n=1, freq=440, f2mul=1.5, hpf=0, dur=1, amp=(-5.dbamp)
 	sig = sig.tanh;
 	sig = HPF.ar(sig, hpf);
 	sig = sig * env;
+	// sig = MiVerb.ar(sig);
 	Out.ar(out, sig);
 }).add;
 

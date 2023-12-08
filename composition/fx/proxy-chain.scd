@@ -6,6 +6,9 @@ ProxyChain.add(*[
 	\lpf, \filter -> { |in, freq = 200, mul = 4|
 		LPF.ar(in, freq, mul);
 	},
+	\hpf, \filter -> { |in, freq = 80, mul = 4|
+		HPF.ar(in, freq, mul);
+	},
 	\moogVcf, \filter -> { |in, freq = 200, gain = 1|
 		MoogFF.ar(in, freq, gain);
 	},

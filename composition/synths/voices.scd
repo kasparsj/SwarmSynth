@@ -36,12 +36,12 @@ SynthDef(\voice_bass, { arg
 	Out.ar(0, snd * env);
 }).add;
 
-SynthDef(\voice_tenor, { |out=0, freq = 220, hpf=0, vibratoSpeed = 6, vibratoDepth = 4, vowel = 0, att = 0.01, rel = 0.1, lag = 1, gate = 1, pan=0, amp=0|
+SynthDef(\voice_tenor, { |out=0, freq = 220, detune=0, hpf=0, vibratoSpeed = 6, vibratoDepth = 4, vowel = 0, att = 0.01, rel = 0.1, lag = 1, gate = 1, pan=0, amp=0|
 
 	var in, vibrato, env, vowels, snd;
 
 	vibrato = SinOsc.kr(vibratoSpeed, mul: vibratoDepth);
-	in = SinOsc.ar(Lag.kr(freq, lag) + vibrato);
+	in = SinOsc.ar(Lag.kr(freq + (freq*detune), lag) + vibrato);
 	// in = Saw.ar(Lag.kr(freq, lag) + vibrato);
 	env = EnvGen.kr(Env.asr(att, 1, rel), gate, doneAction: 2);
 
