@@ -31,27 +31,8 @@ SwarmMath {
 	}
 
 	calc { |i, params=nil, excludeParams=nil|
-		var event = (), result = [];
-		event.n = (i / (partials * variations)).floor;
-		event.freq = freqs[event.n];
-		event.freqs = freqs;
-		event.partial = (i / variations).floor % partials;
-		event.partial1 = event.partial + 1;
-		event.partials = partials;
-		event.variation = i % variations;
-		event.variations = variations;
-		event.f = event.freq;
-		event.p = event.partial;
-		event.ps = event.partials;
-		event.p1 = event.p + 1;
-		event.v = event.variation;
-		event.vs = event.variations;
-		event.sz = this.size; // can't call it size
-		event.nf = freqs.size;
-		event.np = event.partials;
-		event.nv = event.variations;
-		event.vol = vol;
-		((params ?? args.keys).asSet -- (excludeParams ?? []).asSet).do { |param|
+		var event = SwarmEvent.new(i, this), result = [];
+		((params ?? args.keys).asSet -- (excludeParams ? []).asSet).do { |param|
 			if (args[param].notNil) {
 				result = result.addAll([param, args[param].(event)]);
 			};
@@ -60,10 +41,63 @@ SwarmMath {
 	}
 
 	putEvent { |event, freqIndex=nil|
-		// todo: how to handle overrides, e.g. freq, amp
+		event = event.asDict;
+		if (event[\partials].notNil) {
+			partials = event[\partials];
+		};
+		if (event[\variations].notNil) {
+			variations = event[\variations];
+		};
+		if (args[\amp].isFunction and: { event[\amp].notNil }) {
+			vol = event[\amp];
+			event.removeAt(\amp);
+		};
+		if (args[\freq].isFunction) {
+			if (event[\freqs].notNil) {
+				freqs = event[\freqs];
+				event.removeAt(\freqs);
+			};
+			if (event[\freq].notNil) {
+				freqs[freqIndex ? 0] = event[\freq];
+				event.removeAt(\freq);
+			};
+		};
 		args.putAll(event);
-		if (freqIndex.notNil) {
+		if (event.respondsTo(\use) and: { freqIndex.notNil }) {
 			event.use { freqs[freqIndex] = ~freq.value };
 		};
+	}
+}
+
+SwarmEvent {
+	var <i, <n, <>freq, <freqs, <>partial, <>partial1, <partials, <variation, <variations, <size;
+	var <f, <p, <ps, <p1, <v, <vs, <sz, <nf, <nf, <np, <nv, <vol;
+
+	*new { |i, parent|
+		var inst = super.newCopyArgs(i);
+		inst.init(parent);
+		^inst;
+	}
+
+	init { |m|
+		n = (i / (m.partials * m.variations)).floor;
+		freq = m.freqs[n];
+		freqs = m.freqs;
+		partial = (i / m.variations).floor % m.partials;
+		partial1 = partial + 1;
+		partials = m.partials;
+		variation = i % m.variations;
+		variations = m.variations;
+		size = m.size;
+		vol = m.vol;
+		f = freq;
+		p = partial;
+		ps = partials;
+		p1 = p + 1;
+		v = variation;
+		vs = variations;
+		nf = freqs.size;
+		np = partials;
+		nv = variations;
 	}
 }

@@ -1,8 +1,8 @@
 SwarmSynth {
-    var instrument, <>defaultParams, <>group, <>synths, <>params, <>rampRoutine;
+    var instrument, <>hasGate, <>defaultParams, <>group, <>synths, <>params, <>rampRoutine;
 
-    *new { |synthDef, defaultParams|
-		var inst = super.newCopyArgs(synthDef, defaultParams, Group.new, [], []);
+    *new { |synthDef, defaultParams, hasGate=true|
+		var inst = super.newCopyArgs(synthDef, hasGate, defaultParams, Group.new, [], []);
 		inst.init;
 		^inst;
     }
@@ -13,7 +13,8 @@ SwarmSynth {
 				rampRoutine.stop;
 				rampRoutine = nil;
 			};
-			{group = Group.new;}.defer(0.2);
+			this.release;
+			{ group = Group.new; }.defer(0.1);
 		});
 	}
 
@@ -74,7 +75,7 @@ SwarmSynth {
 			var func = ("lin" ++ curve.asString).asSymbol;
 			var def = if (curve == \exp, value, 0);
 			var v = progress.perform(func, 0, 1, in[key] ?? def, value);
-			if (v.isNaN) {
+			if (v.respondsTo(\isNaN) and: { v.isNaN }) {
 				v = value;
 			};
 			out.put(key, v);
@@ -120,15 +121,17 @@ SwarmSynth {
     prCreateSynth { |i, pairs|
 		var dict, synth, merged;
 		dict = pairs.asDict;
-		synth = dict.removeAt(\instrument) ?? instrument;
+		synth = dict[\instrument] ? instrument;
+		dict.removeAt(\instrument);
 		merged = this.mergePairs(params[i], dict.asPairs);
 		this.prClose(i);
 		this.prResizeParams(i);
 		params[i] = merged;
 		this.prResizeSynths(i);
-		synths[i] = Synth(instrument, merged, group);
+		synths[i] = Synth(synth, merged, group);
 		// synths[i] = Synth.basicNew(synth);
-		NodeWatcher.register(synths[i]);
+		// todo: NodeWatcher is slow with many nodes
+		// NodeWatcher.register(synths[i]);
 		// ^synths[i].newMsg(nil, merged);
 		^nil;
     }
@@ -142,9 +145,11 @@ SwarmSynth {
 		^nil;
 	}
 
-	prUpdate { |i, params, j=0, createNew=true, fadeTime=nil|
+	prUpdate { |i, params, j=0, createNew=true, fadeTime=nil, excludeParams=nil|
 		var parsed;
-		^if (synths[i].isNil or: { synths[i].isPlaying.not }) {
+		// todo: isPlaying is unreliable for many nodes (it takes a while for it to update)
+		// ^if (synths[i].isNil or: { synths[i].isPlaying.not }) {
+		^if (synths[i].isNil) {
 			if (createNew) {
 				parsed = this.mergePairs(this.parseParams(i, this.defaultParams, j), this.parseParams(i, params, j));
 				if (fadeTime.notNil) {
@@ -156,6 +161,7 @@ SwarmSynth {
 			}
 		} {
 			parsed = this.parseParams(i, params, j);
+			parsed = parsed.asDict.reject{ |item, key| (excludeParams ? []).includes(key) }.asPairs;
 			this.prUpdateSynth(i, parsed);
 		};
 	}
@@ -176,7 +182,7 @@ SwarmSynth {
 	prResize { |params, to, fadeTime=nil|
 		if (to > (this.size-1)) {
 			var toCreate = to;
-			to = this.size-1;
+			to = (this.size-1).max(0);
 			// make sure from/to won't be replaced
 			if (params.isKindOf(SwarmMath)) {
 				var m = params;
@@ -197,7 +203,16 @@ SwarmSynth {
 		^to;
 	}
 
-	prSet { |params, from=nil, to=nil, createNew=true, fadeTime=nil|
+	prSetOne { |i, params, j, createNew=true, fadeTime=nil, defer=0, excludeParams=nil|
+		^if (defer > 0) {
+			{ this.prUpdate(i, params, j, createNew: createNew, fadeTime: fadeTime, excludeParams: excludeParams ? [\phase, \pan]) }.defer(defer*i);
+			nil;
+		} {
+			this.prUpdate(i, params, j, createNew: createNew, fadeTime: fadeTime, excludeParams: excludeParams);
+		};
+	}
+
+	prSet { |params, from=nil, to=nil, createNew=true, fadeTime=nil, defer=0, excludeParams=nil|
 		var bundle, parsed, msg;
 		if (params.isKindOf(SwarmMath)) {
 			var m = params;
@@ -210,18 +225,18 @@ SwarmSynth {
 			from = 0;
 			to = this.size-1;
 		};
-		bundle = OSCBundle.new;
+		// bundle = OSCBundle.new;
 		if (to.isNil) {
-			msg = this.prUpdate(from, params, 0, createNew: createNew, fadeTime: fadeTime);
-			if (msg.notNil) {
-				bundle.add(msg);
-			};
+			msg = this.prSetOne(from, params, 0, createNew: createNew, fadeTime: fadeTime, defer: defer, excludeParams: excludeParams);
+			// if (msg.notNil) {
+			// 	bundle.add(msg);
+			// };
 		} {
 			(from..to).do { |i, j|
-				msg = this.prUpdate(i, params, j, createNew: createNew, fadeTime: fadeTime);
-				if (msg.notNil) {
-					bundle.add(msg);
-				};
+				msg = this.prSetOne(i, params, j, createNew: createNew, fadeTime: fadeTime, defer: defer, excludeParams: excludeParams);
+				// if (msg.notNil) {
+				// 	bundle.add(msg);
+				// };
 			};
 		};
 		// bundle.messages.postln;
@@ -232,11 +247,14 @@ SwarmSynth {
 		// bundle.send;
 	}
 
-    set { |params, from=nil, to=nil, createNew=true, fadeTime=nil|
+    set { |params, from=nil, to=nil, createNew=true, fadeTime=nil, defer=0, excludeParams=nil|
 		if (rampRoutine.notNil) {
 			^this;
 		};
-		this.prSet(params, from, to, createNew, fadeTime);
+		if (this.hasGate.not) {
+			this.reset;
+		};
+		this.prSet(params, from, to, createNew, fadeTime, defer, excludeParams);
 	}
 
 	xset { |params, from=nil, to=nil, fadeTime=nil|
@@ -247,7 +265,7 @@ SwarmSynth {
 		if (params.isKindOf(SwarmMath)) {
 			var m = params;
 			from = 0;
-			to = m.size-1;
+			to = (m.size-1).max(0);
 			to = this.prShrink(to, fadeTime);
 			params = { |i, p, j| m.calc(i) };
 		};
@@ -256,13 +274,12 @@ SwarmSynth {
 		this.set(mergedParams, from, to, fadeTime: fadeTime);
 	}
 
-	// todo: rampTo has a bug - when called again, or xset/set before it completes
 	rampTo { |params, duration=1, curve = \exp, from=nil, to=nil, excludeParams=nil|
 		var startParams, mergedParams;
 		if (params.isKindOf(SwarmMath)) {
 			var m = params;
 			from = 0;
-			to = m.size-1;
+			to = (m.size-1).max(0);
 			to = this.prResize(params, to, duration);
 			params = { |i, p, j| m.calc(i, nil, (excludeParams ?? [\phase, \pan])) };
 		};
@@ -310,9 +327,9 @@ SwarmSynth {
 
 	prClose { |i|
 		if (i >= 0 and: { i < this.size }) {
-			if (synths[i].notNil) {
-				NodeWatcher.unregister(synths[i]);
-			};
+			// if (synths[i].notNil) {
+			// 	NodeWatcher.unregister(synths[i]);
+			// };
 			synths[i] = nil;
 			params[i] = nil;
 		};
@@ -329,7 +346,7 @@ SwarmSynth {
 		if (fadeTime.notNil) {
 			params = params.addAll([\fadeTime, fadeTime]);
 		};
-		this.set(params, from, to, createNew: false);
+		this.prSet(params, from, to, createNew: false);
 		this.reset(from, to);
     }
 
