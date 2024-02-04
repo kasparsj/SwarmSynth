@@ -30,14 +30,22 @@ SwarmMath {
 		^(freqs.size * partials * variations);
 	}
 
+	val { |i, param, event=nil|
+		^args[param].(event ?? { SwarmEvent.new(i, this) });
+	}
+
 	calc { |i, params=nil, excludeParams=nil|
 		var event = SwarmEvent.new(i, this), result = [];
 		((params ?? args.keys).asSet -- (excludeParams ? []).asSet).do { |param|
 			if (args[param].notNil) {
-				result = result.addAll([param, args[param].(event)]);
+				result = result.addAll([param, this.val(i, param, event)]);
 			};
 		};
 		^result;
+	}
+
+	get { |param|
+		^{ |i| { |j| this.val(i*partials + j, param); }.dup(partials); }.dup(variations);
 	}
 
 	putEvent { |event, freqIndex=nil|
@@ -66,6 +74,28 @@ SwarmMath {
 		if (event.respondsTo(\use) and: { freqIndex.notNil }) {
 			event.use { freqs[freqIndex] = ~freq.value };
 		};
+	}
+
+	plot { |name, bounds, discrete=false, variation=nil|
+		// todo: plot variations inside one graph, but using different colors
+		var freqs, amps, order, plt;
+		freqs = this.get(\freq)[variation ? 0];
+		amps = this.get(\amp);
+		order = freqs.order;
+		amps = if (variation.notNil) {
+			amps = amps[variation];
+			amps.collect({ |v, i| amps[order[i]] });
+		} {
+			// multi-channel
+			amps.collect { |v, i|
+				v.collect({ |v2, i2| v[order[i2]] });
+			};
+		};
+		plt = amps.plot(name, bounds, discrete);
+		plt.domain = freqs.sort;
+		plt.domainSpecs = [freqs.minItem, freqs.maxItem, \exp].asSpec;
+		plt.plotMode = \plines;
+		^plt;
 	}
 }
 
