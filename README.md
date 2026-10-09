@@ -35,12 +35,13 @@ python3 tests/run-playback.py
 python3 tests/run-registry.py
 python3 tests/run-density-automation.py
 python3 tests/run-swarm-audition.py
+python3 tests/run-audition-nyquist.py
 python3 tests/run-synthdefs.py
 python3 tests/run-standard-instruments.py
 ```
 
-The last two commands render offline audio with `scsynth`. Standard instrument
-renders are written to ignored `output/standard-instruments/`. Add `--gui` to
+The Nyquist regression and last two commands render offline audio with `scsynth`.
+Standard instrument renders are written to ignored `output/standard-instruments/`. Add `--gui` to
 `run-swarm-audition.py` for the Qt smoke test. Automated checks establish the
 covered contracts and numeric audio behavior, not an artistic audition.
 

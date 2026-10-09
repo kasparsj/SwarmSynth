@@ -248,7 +248,9 @@ SwarmAudition {
         state.args.putAll(event ? ());
         state.args.putAll(settings.overrides);
         state.args[\out] = self.context.routes[settings.route];
-        state.args[\nyquistMode] = settings.nyquistMode;
+        if (settings.nyquistMode != -1) {
+            state.args[\nyquistMode] = settings.nyquistMode;
+        };
         ratioMode = settings.ratioMode; ratioPower = settings.ratioPower; stiffness = settings.stiffness;
         if (ratioMode != \original) {
             state.args[\ratio] = switch(ratioMode,
