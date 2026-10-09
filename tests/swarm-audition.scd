@@ -30,7 +30,7 @@ variants = (
 		ratio: { |event| event.p1.squared },
 		freq: { |event| SwarmMath.freqRatio(event) },
 		amp: { |event| event.vol / event.p1.squared },
-		phase: { 0 }, pan: { 0 }, out: 0, tone: 0.75, nyquistMode: -1
+		phase: { 0 }, pan: { 0 }, out: 0, tone: 0.75, release: 0.3, nyquistMode: -1
 	), partials: 4, variations: 1),
 	huge: (args: (
 		ratio: { |event| event.p1 },
@@ -239,6 +239,15 @@ try {
 			0.12.wait;
 			check.(facade[\run].isNil and: { child.isPlaying.not },
 				"Single completion left controller or child routine active");
+
+            // Complete variants supply their own release even without an override.
+            audition.selectVariant(\glass);
+            audition.update(\duration, 0.02);
+            audition.start;
+            0.10.wait;
+            check.(facade[\run].notNil, "Single ignored the selected definition release");
+            0.30.wait;
+            check.(facade[\run].isNil, "Single failed to clean up the variant release");
 			beforeDispose = CmdPeriod.objects.size;
 			audition.dispose;
 			check.(CmdPeriod.objects.size == (beforeDispose - 1),

@@ -422,7 +422,8 @@ SwarmAudition {
                             if (settings.mode == \single) {
                                 // Allow the private release envelope before removing the group.
                                 var metadata = registry.metadata(run[\name]);
-                                var release = settings.overrides[metadata[\releaseKey] ? \release] ? metadata[\releaseTime] ? 0.01;
+                                var releaseKey = metadata[\releaseKey] ? \release;
+                                var release = run[\state].args[releaseKey] ? metadata[\releaseTime] ? 0.01;
                                 (release * run[\clock].tempo + 0.02).wait;
                                 self[\stopAudition].value(self);
                             };
