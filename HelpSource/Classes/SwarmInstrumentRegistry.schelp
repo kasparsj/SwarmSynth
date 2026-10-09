@@ -1,0 +1,81 @@
+CLASS:: SwarmInstrumentRegistry
+summary:: Resolve named composition instruments without owning their playback
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmInstrument, Classes/SwarmMath
+
+DESCRIPTION::
+SwarmInstrumentRegistry stores an ordered inventory of instrument definitions. A resolver receives the lookup Environment on every access, so live-coded state and playback replacements are picked up without rebuilding the registry.
+
+Registration is inert. A SwarmInstrument wrapper is created only by the first strict lookup of a SwarmMath state. Each Environment receives a separate wrapper cache. Wrappers bind borrowed playback and registry disposal never releases it. Cached wrappers retain identity while their constructor contract is unchanged. A changed SynthDef, variant definition, default parameter set, gate mode, or live-switch mode rebuilds the wrapper on lookup while leaving live state and playback untouched.
+
+CLASSMETHODS::
+
+METHOD:: new
+Creates an empty registry.
+
+INSTANCEMETHODS::
+
+METHOD:: register
+Adds one instrument and returns the registry.
+argument:: name
+A unique Symbol. Registration order is retained by code::names::.
+argument:: resolver
+A Function receiving the lookup Environment and returning an Event or dictionary with code::synth:: and code::state:: values.
+argument:: spec
+An Event or dictionary containing code::synthDef:: and optional code::variant::, code::defaultParams::, code::hasGate::, and code::liveSwitch:: values.
+argument:: variants
+The named definitions accepted by SwarmInstrument.
+argument:: metadata
+Optional application metadata. The registered dictionary is returned by code::metadata:: and may be enriched before a consumer is constructed.
+
+METHOD:: names
+Returns the registered names in insertion order.
+
+METHOD:: at
+Resolves one binding in the supplied Environment, or code::currentEnvironment:: when omitted. Returns code::(synth: ..., state: ..., instrument: ...)::. A non-SwarmMath state remains available and has a nil instrument.
+
+METHOD:: instrument
+Returns the cached SwarmInstrument for a SwarmMath binding. Other state types produce a descriptive error.
+
+METHOD:: spec
+Returns the registered instrument specification.
+
+METHOD:: metadata
+Returns the mutable metadata dictionary for the named instrument.
+
+METHOD:: instruments
+Returns the wrapper cache for an Environment. This is mainly for compatibility with composition-level registries.
+
+METHOD:: adoptCaches
+Moves all per-Environment wrapper caches and their copied registration contracts from another registry into this unused registry, then invalidates the old registry. Composition adapters can use this while reloading definitions without retaining an abandoned registry. The next lookup compares the copied contract with the new registration. An unchanged contract retains wrapper identity. A changed contract builds a fresh wrapper, preserving its selected variant when that name still exists or using the new specification's code::variant:: default otherwise.
+
+METHOD:: dispose
+Invalidates cached wrappers and the registry. Borrowed playback is detached without being released or disposed.
+
+EXAMPLES::
+
+code::
+(
+~bellVariants = (
+    original: (args: (
+        freq: { |e| e.freq * e.p1 },
+        amp: { |e| e.vol / e.p1 }, phase: 0, pan: 0
+    ), partials: 12, variations: 1)
+);
+~registry = SwarmInstrumentRegistry.new;
+~registry.register(\bell, { |environment|
+    (synth: environment[\bellSynth], state: environment[\bellState])
+}, (
+    synthDef: \swarm_partial,
+    hasGate: true,
+    liveSwitch: \sustained
+), ~bellVariants, (label: "Bell"));
+
+~bellSynth = SwarmSynth.new(\swarm_partial);
+~bellState = SwarmMath.new([110], 12, 1,
+    ~bellVariants[\original][\args], 0.05);
+~registry.at(\bell);       // synth/state/instrument Event
+~registry.metadata(\bell); // application metadata
+~registry.dispose;         // ~bellSynth remains owned by this Environment
+)
+::

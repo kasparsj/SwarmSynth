@@ -1,0 +1,47 @@
+CLASS:: SwarmPlayback
+summary:: Apply an event and wait on the caller's clock using borrowed registry playback
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmInstrumentRegistry, Classes/SwarmMath, Classes/SwarmSynth
+
+DESCRIPTION::
+SwarmPlayback is a synchronous scheduling helper for composition code. It resolves one raw registry binding, applies an Event to that state, updates the resolved synth, and yields for a separate number of beats. It creates no Routine and uses the caller's clock.
+
+The resolved state and synth are borrowed. SwarmPlayback does not create, reset, release, or dispose playback. In particular, it deliberately bypasses code::SwarmInstrument.play:: so a code::\nextTrigger:: registration does not reset production nodes. If the registry binding changes while the caller is waiting, optional gate closure still targets the synth resolved at the start of the call.
+
+CLASSMETHODS::
+
+METHOD:: play
+Applies an event, waits, optionally closes the resolved synth's gate, and returns the Event produced by code::registry.at(name)::.
+
+argument:: registry
+A SwarmInstrumentRegistry, or another object implementing code::at(name):: with the same raw-binding contract.
+
+argument:: name
+The registered instrument name.
+
+argument:: event
+The Event passed to code::state.putEvent::. Envelope duration remains an explicit event value and is independent from code::waitBeats::.
+
+argument:: waitBeats
+A nonnegative finite number yielded to the caller's Routine. It is validated before registry lookup or state mutation.
+
+argument:: closeGate
+When exactly code::true::, calls code::closeGate:: on the synth resolved before the wait. The default is false.
+
+argument:: excludeParams
+Optional parameter names forwarded unchanged to code::synth.set(state, excludeParams: excludeParams)::.
+
+EXAMPLES::
+
+code::
+Routine {
+    // A short envelope may be followed by a longer scheduled rest.
+    SwarmPlayback.play(
+        ~registry, \bell,
+        (midinote: 64, duration: 0.25),
+        waitBeats: 1,
+        closeGate: true,
+        excludeParams: [\phase, \pan]
+    );
+}.play(TempoClock.default);
+::

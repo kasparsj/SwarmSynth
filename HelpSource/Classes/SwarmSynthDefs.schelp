@@ -1,0 +1,64 @@
+TITLE:: SwarmSynthDefs
+SUMMARY:: Reusable sine-partial SynthDef builders
+CATEGORIES:: Libraries>SwarmSynth
+RELATED:: Classes/SwarmMath, Classes/SwarmSynth
+
+DESCRIPTION::
+Builds the standard sine partial, sustained, pad, and chip graphs used with
+SwarmSynth. Builders return SynthDef objects without registering them or
+starting a server. Call code::.add:: on a returned definition, or use
+code::install:: for the canonical library names.
+
+CLASSMETHODS::
+
+METHOD:: partial
+Builds an attack/decay or gate-sustained sine partial. The code::nyquistMode::
+control is passed directly to code::SwarmMath.frequencyPolicy::.
+
+ARGUMENT:: name
+SynthDef name.
+
+METHOD:: sustained
+Builds a gate-controlled sine voice with pulse, saw, amplitude, detune, phase,
+pan, and Nyquist-policy modulation.
+
+ARGUMENT:: name
+SynthDef name.
+
+ARGUMENT:: gateBeforeAmp
+When false, controls begin code::out, freq, amp, fadeTime, gate::. When true,
+they begin code::out, freq, gate, amp, fadeTime::. The alternate order exists
+for compatibility with compositions whose SynthDef contract already uses it;
+the UGen graph is otherwise identical. Defaults to false.
+
+METHOD:: pad
+Builds a self-freeing sine pad with a linen envelope and detune modulation.
+
+ARGUMENT:: name
+SynthDef name.
+
+METHOD:: chip
+Builds a self-freeing sine chip voice. Legacy folding is enabled by default and
+is applied after detuning.
+
+ARGUMENT:: name
+SynthDef name.
+
+METHOD:: install
+Registers code::swarm_partial::, code::swarm_sustained::, code::swarm_pad::,
+and code::swarm_chip:: in SynthDescLib and sends them to running servers using
+SynthDef's normal code::.add:: behavior. It does not boot a server.
+
+EXAMPLES::
+
+code::
+// Construction alone is inert.
+~voiceDefinition = SwarmSynthDefs.sustained(\mySustainedVoice);
+
+// Register only the definition needed by the composition.
+~voiceDefinition.add;
+~voice = SwarmSynth.new(\mySustainedVoice);
+
+// Or install all canonical definitions explicitly.
+SwarmSynthDefs.install;
+::

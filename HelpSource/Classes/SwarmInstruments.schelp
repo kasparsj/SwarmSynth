@@ -1,0 +1,129 @@
+CLASS:: SwarmInstruments
+summary:: Ready-to-use additive flute, clarinet, organ, marimba, and bell
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmInstrument, Classes/SwarmSynthDefs, Classes/SwarmAudition
+
+DESCRIPTION::
+SwarmInstruments is a collection of small, reusable additive instruments built
+on code::\swarm_partial::. It is independent of any composition. Construction
+does not boot a server, install a SynthDef, create a group, or play sound.
+
+Each call to code::make:: returns a fresh SwarmInstrument with its own
+SwarmMath state and lazily created playback. The code::natural::,
+code::soft::, and code::bright:: variants retain the same partial ratios and
+counts while changing spectral weights and partial envelope times. Their
+weights sum to code::amp:: per base frequency across all variations; this is not a
+claim of equal perceived loudness. Chords add one budget per base frequency;
+reduce code::amp:: for large chords. Reducing the partial count removes modes
+and lowers the total budget; increasing it adds silent partials.
+
+Flute and clarinet use harmonic and odd-harmonic spectra respectively; organ
+emphasizes octaves and fifths. Marimba uses modes at 1:4:10. Bell uses modes at
+0.5:1:1.2:1.5:2:3 and is a generic bell approximation, with its supplied pitch
+as a reference rather than its lowest mode.
+
+Flute, clarinet, and organ are gate-sustained instruments. Marimba and bell
+are self-freeing strikes whose next trigger may overlap an earlier tail.
+All instruments use centered pan, deterministic phase, one variation, and
+the code::\mute:: Nyquist policy by default.
+
+Before playback, boot the server and explicitly call
+code::SwarmSynthDefs.install::. Recompile the SuperCollider class library
+after installing or changing SwarmSynth classes.
+
+CLASSMETHODS::
+
+METHOD:: names
+Returns the five collection names in stable order: code::flute::,
+code::clarinet::, code::organ::, code::marimba::, and code::bell::.
+
+METHOD:: metadata
+Returns a defensive metadata copy for an instrument.
+
+The metadata includes code::label::, suggested code::register:: as a MIDI-note
+pair, code::articulation::, code::description::, code::auditionGate::,
+code::releaseKey::, code::releaseTime::, code::defaultNyquistPolicy::, and an
+empty code::descriptors:: array. For struck sounds, code::releaseTime::
+provides the longest variant tail allowance for single-note auditions. Suggested registers are musical guidance,
+not pitch limits.
+
+argument:: name
+One of the symbols returned by code::names::. An unknown name raises an error.
+
+METHOD:: make
+Creates a fresh SwarmInstrument. No state or playback is shared with any other
+result from this method.
+
+argument:: name
+One of the symbols returned by code::names::.
+
+argument:: freqs
+One or more positive base frequencies in Hz. Defaults to code::#[440]::.
+
+argument:: amp
+Amplitude budget for each base frequency. Defaults to code::0.1::.
+
+argument:: variant
+Initial timbre variant. Must be code::\natural::, code::\soft::, or
+code::\bright::. Defaults to code::\natural::.
+
+EXAMPLES::
+
+subsection:: Construction and playback
+
+code::
+// Construction is inert.
+~flute = SwarmInstruments.make(\flute, #[440], 0.06);
+~flute.synth; // nil until the first play
+
+s.waitForBoot {
+    SwarmSynthDefs.install;
+    s.sync;
+
+    // Event pitch resolution remains available.
+    ~flute.play((midinote: 69, gate: 1));
+};
+
+// A held instrument must receive gate 1 on every new articulation.
+~flute.closeGate;
+~flute.play((midinote: 72, transpose: -12, amp: 0.04, gate: 1));
+~flute.setVariant(\bright, transitionTime: 0.35);
+~flute.closeGate;
+~flute.dispose;
+::
+
+subsection:: Chords and struck tails
+
+code::
+(
+~organ = SwarmInstruments.make(\organ, [48, 55, 60, 64].midicps, 0.025, \soft);
+~bell = SwarmInstruments.make(\bell, #[440], 0.045);
+
+s.waitForBoot {
+    SwarmSynthDefs.install;
+    s.sync;
+
+    ~organ.play((gate: 1));
+
+    // Bell uses next-trigger playback. The second strike creates new nodes
+    // while the first strike's self-freeing tails continue to decay.
+    ~bell.play((midinote: 72));
+    { ~bell.play((midinote: 79)) }.defer(0.18);
+};
+)
+
+// Release removes sound immediately; dispose also removes owned playback.
+~organ.closeGate;
+~organ.dispose;
+~bell.release;
+~bell.dispose;
+::
+
+subsection:: Listening and audition examples
+
+code::
+// See examples/standard-instruments.scd for phrases and variant comparisons.
+// See examples/standard-instruments-audition.scd for local registry ownership
+// and the SwarmAudition GUI. The GUI clears tails on retrigger for isolation;
+// use the listening example for overlapping SwarmInstrument strikes.
+::

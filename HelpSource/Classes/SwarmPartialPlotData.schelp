@@ -1,0 +1,41 @@
+CLASS:: SwarmPartialPlotData
+summary:: Project cached swarm snapshots into partial-plot records
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmMath, Classes/SwarmAuditionGUI
+
+DESCRIPTION::
+SwarmPartialPlotData is a pure projection helper. It does not evaluate synthesis callbacks, create views, or start audio. Plot interactions can therefore repeatedly project one controller-owned capture without resampling it.
+
+CLASSMETHODS::
+
+METHOD:: fromCapture
+Returns an Event containing sorted plot records, axis limits, Nyquist information, filter choices, labels, and capture status.
+
+argument:: capture
+An Event or Dictionary with code::records:: from link::Classes/SwarmMath:: code::playbackSnapshot::, a symbolic code::name::, a positive code::sampleRate::, and optional labels and status.
+
+The optional code::frequencyInterpretation:: callback receives each record's values and returns the numeric oscillator frequency represented by those values. This supports synth controls whose captured code::freq:: is a base parameter rather than the final oscillator input. code::defaultNyquistPolicy:: may be code::\none::, code::\fold::, code::\mute::, or code::\taper::. Both fields may be top-level or in a code::metadata:: dictionary. The defaults are direct code::freq:: interpretation and code::\none::.
+
+argument:: axis
+code::\frequency:: or code::\partial::.
+
+argument:: display
+code::\generated:: shows interpreted oscillator inputs. code::\policy:: applies the captured or inherited Nyquist policy.
+
+argument:: baseIndex
+Optional zero-based base-frequency filter.
+
+argument:: variation
+Optional zero-based variation filter.
+
+EXAMPLES::
+
+code::
+~capture = (
+    name: \example, sampleRate: 48000, status: \preview,
+    defaultNyquistPolicy: \fold,
+    records: ~state.playbackSnapshot(1234, true)
+);
+~plot = SwarmPartialPlotData.fromCapture(~capture, \frequency, \policy);
+~plot.records.size.postln;
+::
