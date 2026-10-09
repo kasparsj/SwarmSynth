@@ -61,3 +61,66 @@ SwarmAuditionRecordingSynth {
 		^this
 	}
 }
+
+// Lifecycle owner used to prove SwarmAudition's optional protocol without
+// loading StochasticSequencer or any other quark.
+SwarmAuditionRunOwnerDouble {
+	var <children, <active = true, <runs = 0, <forks = 0, <cleanups = 0;
+	var onCleanup, onError, failCleanup;
+
+	*new { |onCleanup=nil, onError=nil, failCleanup=false|
+		^super.newCopyArgs(nil, true, 0, 0, 0, onCleanup, onError, failCleanup).init
+	}
+
+	init {
+		children = IdentitySet.new;
+		^this
+	}
+
+	run { |function|
+		runs = runs + 1;
+		try {
+			function.value;
+			this.cleanup;
+		} { |error|
+			this.cleanup;
+			if(onError.notNil) { onError.value(error, this) } { error.throw };
+		};
+		^this
+	}
+
+	fork { |function, clock|
+		var child;
+		if(active.not) { ^nil };
+		forks = forks + 1;
+		child = Routine {
+			try {
+				function.value;
+				children.remove(child);
+			} { |error|
+				children.remove(child);
+				this.cleanup;
+				if(onError.notNil) { onError.value(error, this) } { error.throw };
+			};
+		};
+		children.add(child);
+		child.play(clock ? thisThread.clock);
+		^child
+	}
+
+	cleanup {
+		if(active) {
+			active = false;
+			cleanups = cleanups + 1;
+			children.copy.do { |child|
+				if(child !== thisThread and: { child !== thisThread.threadPlayer }) {
+					child.stop;
+				};
+			};
+			children.clear;
+			onCleanup !? { |action| action.value(this) };
+			if(failCleanup) { Error("owner cleanup failed").throw };
+		};
+		^this
+	}
+}

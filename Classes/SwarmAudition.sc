@@ -1,6 +1,7 @@
 SwarmAudition {
     var <registry, <options, <facade, owner;
     *new { |registry, options| ^super.new.init(registry, options ? ()); }
+    *supportsRunOwner { ^true }
     init { |aRegistry, settings|
         registry = aRegistry; options = settings.copy; owner = currentEnvironment;
         if(registry.isKindOf(SwarmInstrumentRegistry).not) { Error("SwarmAudition: registry must be a SwarmInstrumentRegistry").throw };
@@ -407,7 +408,7 @@ SwarmAudition {
     phrase: { |self, run| owner.use { options[\phrase].value(self, run, self.context) };
     },
     start: { |self|
-        var run, settings;
+        var run, settings, rootBody, runOwner;
         self[\checkActive].value(self);
         self[\stopAudition].value(self);
         try {
@@ -417,29 +418,57 @@ SwarmAudition {
             self[\validate].value(self, settings, settings.freqs);
             run = (name: self.selected, active: true, sounding: false,
                 clock: TempoClock(settings.tempo), children: IdentitySet.new,
-                synth: nil, routine: nil, state: nil, noteIndex: 0);
+                synth: nil, routine: nil, owner: nil, cleaning: false,
+                stopNotified: false, state: nil, noteIndex: 0);
             self.run = run;
             run[\synth] = self[\makeSynth].value(self, run[\name]);
+            rootBody = {
+                if (settings.mode == \phrase) {
+                    self[\phrase].value(self, run);
+                } {
+                    while { run[\active] } {
+                        self[\note].value(self, run, settings.freqs, settings.duration * run[\clock].tempo);
+                        if (settings.mode == \single) {
+                            // Allow the private release envelope before removing the group.
+                            var release = run[\releaseTime] ? 0.01;
+                            (release * run[\clock].tempo + 0.02).wait;
+                            self[\stopAudition].value(self, run);
+                        };
+                        if (run[\active]) { (settings.gap.max(0.01) * run[\clock].tempo).wait };
+                    };
+                };
+            };
             run[\routine] = Routine {
                 try {
-                    if (settings.mode == \phrase) {
-                        self[\phrase].value(self, run);
+                    if (run[\owner].notNil) {
+                        run[\owner].run(rootBody);
+                        // Owners normally clean up on completion. This guard also
+                        // supports minimal owners that only wrap the root body.
+                        if (self.run === run) { self[\stopAudition].value(self, run) };
                     } {
-                        while { run[\active] } {
-                            self[\note].value(self, run, settings.freqs, settings.duration * run[\clock].tempo);
-                            if (settings.mode == \single) {
-                                // Allow the private release envelope before removing the group.
-                                var release = run[\releaseTime] ? 0.01;
-                                (release * run[\clock].tempo + 0.02).wait;
-                                self[\stopAudition].value(self);
-                            };
-                            if (run[\active]) { (settings.gap.max(0.01) * run[\clock].tempo).wait };
-                        };
+                        rootBody.value;
                     };
                 } { |error|
-                    self[\stopAudition].value(self);
-                    self[\notify].value(self, error.errorString);
+                    if (self.run === run) {
+                        var cleanupFailure;
+                        try { self[\stopAudition].value(self, run) } { |caught|
+                            cleanupFailure = caught;
+                        };
+                        cleanupFailure !? { |caught|
+                            ("SwarmAudition cleanup failed while handling " ++ error.what
+                                ++ ": " ++ caught.what).warn;
+                        };
+                        self[\notify].value(self, error.errorString);
+                    };
                 };
+            };
+            options[\runOwner] !? { |factory|
+                runOwner = factory.value(self, run);
+                if (runOwner.isNil) {
+                    Error("SwarmAudition runOwner must return a lifecycle owner").throw;
+                };
+                run[\owner] = runOwner;
+                run[\children] = runOwner.children;
             };
             self[\notify].value(self, "Playing " ++ run[\name] ++ " / " ++ settings.mode
                 ++ " — " ++ if(self[\gated].value(self, run[\name]), "timbre updates live; density on next attack", "changes on next attack"));
@@ -450,35 +479,52 @@ SwarmAudition {
         };
         run;
     },
-    stopAudition: { |self|
-        var run = self.run;
-        self.pendingUpdate !? { |routine| routine.stop; self.pendingUpdate = nil };
-        if (run.notNil) {
-            run[\active] = false;
-            (run[\children].asArray ++ [run[\routine]]).do { |routine|
-                if (routine.notNil and: { routine !== thisThread }) { routine.stop };
-            };
-            run[\children].clear;
-            run[\synth] !? { |synth|
-                if(synth.respondsTo(\dispose)) { synth.dispose } {
-                    synth.rampRoutine !? { |routine| routine.stop; synth.rampRoutine = nil };
-                    synth.release;
-                    if(synth.respondsTo(\group)) { synth.group.free };
-                };
-            };
-            run[\clock].stop;
-            self.run = nil;
+    stopAudition: { |self, expectedRun=nil|
+        var run = self.run, cleanupFailure;
+        if (expectedRun.isNil or: { run === expectedRun }) {
+            self.pendingUpdate !? { |routine| routine.stop; self.pendingUpdate = nil };
         };
-        self[\markPartials].value(self, \stopped);
-        self[\notify].value(self, "Stopped — shared effect tails may decay");
+        if (run.notNil and: { expectedRun.isNil or: { run === expectedRun } }) {
+            run[\active] = false;
+            if(run[\owner].notNil and: { run[\cleaning].not }) {
+                run[\cleaning] = true;
+                try { run[\owner].cleanup } { |error| cleanupFailure = error };
+            };
+            // An owner's cleanup callback may already have re-entered this
+            // method and completed disposal for this exact run.
+            if(self.run === run) {
+                (run[\children].asArray ++ [run[\routine]]).do { |routine|
+                    if (routine.notNil and: { routine !== thisThread }) { routine.stop };
+                };
+                run[\children].clear;
+                run[\synth] !? { |synth|
+                    if(synth.respondsTo(\dispose)) { synth.dispose } {
+                        synth.rampRoutine !? { |routine| routine.stop; synth.rampRoutine = nil };
+                        synth.release;
+                        if(synth.respondsTo(\group)) { synth.group.free };
+                    };
+                };
+                run[\clock].stop;
+                self.run = nil;
+            };
+        };
+        if ((expectedRun.isNil or: { run === expectedRun })
+            and: { run.isNil or: { run[\stopNotified].not } }) {
+            run !? { |stoppedRun| stoppedRun[\stopNotified] = true };
+            self[\markPartials].value(self, \stopped);
+            self[\notify].value(self, "Stopped — shared effect tails may decay");
+        };
+        cleanupFailure !? { |error| error.throw };
     },
     dispose: { |self|
+        var cleanupFailure;
         self.disposed = true;
-        self[\stopAudition].value(self);
+        try { self[\stopAudition].value(self) } { |error| cleanupFailure = error };
         CmdPeriod.remove(self[\cmdPeriod]);
         self[\onStatus] = nil;
         self[\onPartials] = nil;
         self.window !? { |window| { window.close }.defer };
+        cleanupFailure !? { |error| error.throw };
     },
     variantChoices: { |self| if(options[\variantChoices].notNil) { options[\variantChoices].value(self) } { self.variantDefinitions[self.selected].keys.asArray.sort };
     },
@@ -508,7 +554,7 @@ SwarmAudition {
     control { |key, value| ^facade[\control].value(facade, key, value); }
     resetInstrument { ^facade[\resetInstrument].value(facade); }
     start { ^facade[\start].value(facade); }
-    stopAudition { ^facade[\stopAudition].value(facade); }
+    stopAudition { |expectedRun=nil| ^facade[\stopAudition].value(facade, expectedRun); }
     dispose { ^facade[\dispose].value(facade); }
     open { ^facade[\open].value(facade); }
     previewPartials { ^facade[\previewPartials].value(facade); }

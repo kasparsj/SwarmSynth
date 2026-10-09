@@ -10,6 +10,10 @@ The controller exposes code::facade::, an Event-compatible interface used by scr
 
 CLASSMETHODS::
 
+METHOD:: supportsRunOwner
+Returns code::true::. Composition adapters can use this capability check before
+supplying the optional code::runOwner:: integration.
+
 METHOD:: new
 argument:: registry
 A SwarmInstrumentRegistry.
@@ -24,6 +28,7 @@ list::
 ## code::captureContext:: — function receiving the facade and returning captured project context. The context may contain code::routes:: and code::tempo::.
 ## code::ready:: — optional readiness function called immediately before private playback is created. The audio server must also be running unless the facade's code::ready:: implementation is replaced by a test adapter.
 ## code::phrase:: — optional function receiving code::facade, run, context::. Its presence enables the code::\phrase:: playback mode. It may use facade helpers such as code::note:: and code::emit::.
+## code::runOwner:: — optional lifecycle-owner factory receiving code::facade, run::. It is evaluated after the root Routine is constructed and before scheduling. It must return an object providing code::run(function)::, code::fork(function, clock)::, code::cleanup::, and code::children::. The owner wraps root execution and its children collection becomes the existing code::run[\children]:: field. SwarmSynth does not require the owner library when this option is absent.
 ## code::variantSettings:: — function receiving the captured variant and returning private initial settings, commonly code::(variant: name):: plus adapter-specific values.
 ## code::variantKey:: — function receiving code::variant, preset:: and returning the key used to select a registered variant definition.
 ## code::variantChoices:: — optional function receiving the facade and returning available choices.
@@ -61,6 +66,11 @@ Starts the selected Single, Repeat, or configured Phrase mode on a private clock
 
 METHOD:: stopAudition
 Stops owned routines and playback while retaining the last partial capture as code::\stopped::.
+An optional captured run argument restricts cleanup to that exact run. Owner
+callbacks should use this form so delayed cleanup from a retired run cannot stop
+a replacement. Owner cleanup runs before synth, clock, and facade cleanup; those
+resources are still released if owner cleanup throws, after which the cleanup
+error propagates.
 
 METHOD:: dispose
 Stops playback, removes the CmdPeriod hook, clears callbacks, and closes an owned window.
