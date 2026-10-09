@@ -1,0 +1,107 @@
+CLASS:: SwarmAudition
+summary:: Private audition controller for registered SwarmInstrument voices
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmInstrumentRegistry, Classes/SwarmInstrument, Classes/SwarmPartialPlotData
+
+DESCRIPTION::
+SwarmAudition captures registered instruments into private SwarmMath states, applies spectral recipes and control edits to those copies, and owns temporary playback. It does not alter the registered production states. Construction does not capture state, open a window, or play sound.
+
+The controller exposes code::facade::, an Event-compatible interface used by script adapters. Regular method calls are available for the common lifecycle operations.
+
+CLASSMETHODS::
+
+METHOD:: new
+argument:: registry
+A SwarmInstrumentRegistry.
+argument:: options
+An Event or dictionary of configuration values.
+
+The recognized options are:
+
+list::
+## code::nodeLimit:: — maximum frequency × partial × variation node count; defaults to 2048.
+## code::routes:: — output-name to bus-index mapping; defaults to code::(dry: 0)::.
+## code::captureContext:: — function receiving the facade and returning captured project context. The context may contain code::routes:: and code::tempo::.
+## code::ready:: — optional readiness function called immediately before private playback is created. The audio server must also be running unless the facade's code::ready:: implementation is replaced by a test adapter.
+## code::phrase:: — optional function receiving code::facade, run, context::. Its presence enables the code::\phrase:: playback mode. It may use facade helpers such as code::note:: and code::emit::.
+## code::variantSettings:: — function receiving the captured variant and returning private initial settings, commonly code::(variant: name):: plus adapter-specific values.
+## code::variantKey:: — function receiving code::variant, preset:: and returning the key used to select a registered variant definition.
+## code::variantChoices:: — optional function receiving the facade and returning available choices.
+## code::tempo:: — default private clock tempo when captured context has no tempo.
+::
+
+INSTANCEMETHODS::
+
+METHOD:: facade
+Returns the Event-compatible controller. It includes readable code::names::, code::selected::, code::settings::, code::baselines::, code::context::, code::run::, code::status::, and code::partialCapture:: fields, plus controller helpers for composition adapters.
+
+METHOD:: capture
+Captures current registry bindings into private state without stopping an existing run. Use code::refresh:: for the usual stop-and-recapture operation.
+
+METHOD:: refresh
+Stops playback, captures current bindings and context, and publishes a deterministic partial preview.
+
+METHOD:: select
+Stops playback and selects a registered instrument by name.
+
+METHOD:: update
+Changes a standard audition setting. Supported keys include code::variant::, code::freqs::, code::partials::, code::variations::, code::duration::, code::gap::, code::tempo::, code::route::, code::mode::, code::level::, ratio recipe settings, amplitude recipe settings, and code::nyquistMode::. Values are validated before private settings change.
+
+METHOD:: control
+Sets a metadata descriptor control override after validating its minimum and maximum.
+
+METHOD:: resetInstrument
+Restores the selected instrument's captured state, variant, dimensions, and control overrides.
+
+METHOD:: previewPartials
+Returns the current partial capture after generating a fixed-seed stopped preview when no run is active. Previewing restores the caller's random stream.
+
+METHOD:: start
+Starts the selected Single, Repeat, or configured Phrase mode on a private clock.
+
+METHOD:: stopAudition
+Stops owned routines and playback while retaining the last partial capture as code::\stopped::.
+
+METHOD:: dispose
+Stops playback, removes the CmdPeriod hook, clears callbacks, and closes an owned window.
+
+METHOD:: open
+Creates or focuses SwarmAuditionGUI and returns the controller.
+
+METHOD:: settings
+Returns per-instrument private settings.
+
+METHOD:: status
+Returns the current status string.
+
+METHOD:: partialCapture
+Returns cached playback or preview records. Plot interaction should pass this value to SwarmPartialPlotData rather than evaluate spectral callbacks again.
+
+METHOD:: onStatus_
+Sets a function receiving status strings.
+
+METHOD:: onPartials_
+Sets a function receiving cached partial captures.
+
+SUBSECTION:: Registry metadata
+
+SwarmAudition reads the following optional metadata from each registry entry:
+
+list::
+## code::label:: — display label.
+## code::descriptors:: — array, or function returning an array, of control descriptors. Each descriptor supplies at least code::key, min, max:: and may supply code::label, step::.
+## code::spectrumAdaptation:: — function receiving a prepared SwarmMath after a non-original ratio recipe is installed. Without it, code::freq:: becomes code::SwarmMath.freqRatio::.
+## code::frequencyInterpretation:: — function receiving captured node values and returning the generated frequency displayed by SwarmPartialPlotData.
+## code::defaultNyquistPolicy:: — inherited code::\none::, code::\fold::, code::\mute::, or code::\taper:: policy when captured controls do not choose one.
+## code::releaseKey:: and code::releaseTime:: — single-mode release lookup and fallback.
+## code::preservePhasePan:: — retain existing node phase and pan across connected phrase attacks. Sustained live updates retain phase and pan independently.
+## code::auditionGate:: — override the registered instrument gate behavior for audition playback.
+## code::auditionParams:: — default parameter pairs for private SwarmSynth playback.
+::
+
+EXAMPLES::
+
+code::
+// See examples/audition.scd for a complete standalone SynthDef,
+// registry, metadata, and GUI example.
+::

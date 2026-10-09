@@ -1,0 +1,44 @@
+TITLE:: SwarmMath
+summary:: Generate and capture additive swarm controls
+categories:: Libraries>SwarmSynth
+
+DESCRIPTION::
+SwarmMath generates controls for each base frequency, partial and variation.
+Captures require no server and contain generated inputs, not measured spectra.
+
+INSTANCEMETHODS::
+
+METHOD:: playbackSnapshot
+Capture all controls with the same callback order and random consumption as
+code::calc::. The ratio resolves once per event before the other callbacks.
+
+ARGUMENT:: seed
+Optional integer random seed; nil uses the current stream.
+
+ARGUMENT:: preserveRandom
+Defaults to false. When true, restore the calling thread's random state after
+capture, including on errors. Use true for stable previews.
+
+RETURNS::
+An array of records with code::index::, code::freqIndex::, zero-based
+code::partial:: and code::variation::, code::baseFrequency::, code::ratio::,
+and a code::values:: dictionary of generated Synth controls.
+
+DISCUSSION::
+Existing code::snapshot(params, seed):: retains its inspection ordering and
+random-state preservation. Redrawing a display should reuse captured records.
+code::SwarmSynth.setSampled(sampled, fadeTime, excludeParams, createNew)::
+accepts cached control pairs. Pass code::createNew: false:: for live updates
+that must not recreate missing nodes. Read code::synth.params:: afterward for
+merged controls, including retained phase/pan and defaults.
+
+EXAMPLES::
+code::
+state = SwarmMath([110, 165], 8, 2, [
+    freq: { |e| e.freq * e.p1 }, amp: { |e| e.vol / e.p1 }
+], 0.1);
+preview = state.playbackSnapshot(20261009, true);
+// Once playback has been created:
+// records = state.playbackSnapshot;
+// playback.setSampled(records.collect { |r| r[\values].asPairs });
+::

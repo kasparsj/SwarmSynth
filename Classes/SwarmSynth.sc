@@ -1,5 +1,6 @@
 SwarmSynth {
     var instrument, <>hasGate, <>defaultParams, <>group, <>synths, <>params, <>rampRoutine;
+	var cmdPeriodAction, groupGeneration = 0, <disposed = false;
 
     *new { |synthDef, defaultParams, hasGate=true|
 		var inst = super.newCopyArgs(synthDef, hasGate, defaultParams, Group.new, [], []);
@@ -8,14 +9,29 @@ SwarmSynth {
     }
 
 	init {
-		CmdPeriod.add({
-			if (rampRoutine.notNil) {
-				rampRoutine.stop;
-				rampRoutine = nil;
+		cmdPeriodAction = {
+			var generation;
+			if (disposed.not) {
+				this.cancelRamp;
+				this.release;
+				groupGeneration = groupGeneration + 1;
+				generation = groupGeneration;
+				{
+					if (disposed.not and: { generation == groupGeneration }) {
+						group = Group.new;
+					};
+				}.defer(0.1);
 			};
-			this.release;
-			{ group = Group.new; }.defer(0.1);
-		});
+		};
+		CmdPeriod.add(cmdPeriodAction);
+	}
+
+	cancelRamp {
+		if (rampRoutine.notNil) {
+			rampRoutine.stop;
+			rampRoutine = nil;
+		};
+		^this;
 	}
 
 	synthDef {
@@ -257,6 +273,23 @@ SwarmSynth {
 		this.prSet(params, from, to, createNew, fadeTime, defer, excludeParams);
 	}
 
+	setSampled { |sampled, fadeTime=nil, excludeParams=nil, createNew=true|
+		var targetSize;
+		if (sampled.isSequenceableCollection.not) {
+			Error("SwarmSynth: sampled parameters must be a sequenceable collection").throw;
+		};
+		this.cancelRamp;
+		targetSize = sampled.size;
+		if (targetSize == 0) {
+			this.closeGate(fadeTime: fadeTime);
+			^this;
+		};
+		this.prShrink(targetSize - 1, fadeTime);
+		this.prSet({ |i| sampled[i] }, 0, targetSize - 1, createNew, fadeTime, 0,
+			excludeParams);
+		^this;
+	}
+
 	xset { |params, from=nil, to=nil, fadeTime=nil|
 		var mergedParams;
 		if (rampRoutine.notNil) {
@@ -276,18 +309,20 @@ SwarmSynth {
 
 	rampTo { |params, duration=1, curve = \exp, from=nil, to=nil, excludeParams=nil|
 		var startParams, mergedParams;
-		if (params.isKindOf(SwarmMath)) {
-			var m = params;
-			from = 0;
-			to = (m.size-1).max(0);
-			to = this.prResize(params, to, duration);
-			params = { |i, p, j| m.calc(i, nil, (excludeParams ?? [\phase, \pan])) };
+		if (SwarmMath.prFiniteNumber(duration).not or: { duration < 0 }) {
+			Error("SwarmSynth: ramp duration must be a nonnegative finite number").throw;
 		};
+		if (params.isKindOf(SwarmMath)) {
+			var m = params, sampled;
+			sampled = Array.fill(m.size, { |i|
+				m.calc(i)
+			});
+			^this.rampToSampled(sampled, duration, curve,
+				excludeParams ?? [\phase, \pan]);
+		};
+		this.cancelRamp;
 		startParams = this.params.copy;
 		mergedParams = this.mergeParams(params, from, to);
-		if (rampRoutine.notNil) {
-			rampRoutine.stop;
-		};
 		rampRoutine = {
 			var startTime = thisThread.seconds;
 			block {|break|
@@ -295,7 +330,9 @@ SwarmSynth {
 					var time = thisThread.seconds;
 					var delta = time - startTime;
 					if (delta >= duration) {
-						this.prSet(params, from, to);
+						// mergedParams is sampled once above. Reusing it here keeps
+						// random callback targets stable through the whole transition.
+						this.prSet(mergedParams, from, to);
 						rampRoutine = nil;
 						break.value;
 					} {
@@ -307,6 +344,58 @@ SwarmSynth {
 				};
 			};
 		}.fork;
+	}
+
+	rampToSampled { |sampled, duration=1, curve=\lin, excludeParams=nil|
+		var startParams, mergedParams, transitionSamples, targetSize, existingSize;
+		var from = 0, to;
+		if (sampled.isSequenceableCollection.not) {
+			Error("SwarmSynth: sampled parameters must be a sequenceable collection").throw;
+		};
+		if (SwarmMath.prFiniteNumber(duration).not or: { duration < 0 }) {
+			Error("SwarmSynth: ramp duration must be a nonnegative finite number").throw;
+		};
+		this.cancelRamp;
+		targetSize = sampled.size;
+		existingSize = this.size;
+		if (targetSize == 0) {
+			this.closeGate(fadeTime: duration);
+			^this;
+		};
+		to = targetSize - 1;
+		if (targetSize > this.size) {
+			this.prSet({ |i| sampled[i] }, this.size, to, true, duration, 0,
+				excludeParams);
+		} {
+			this.prShrink(to, duration);
+		};
+		startParams = this.params.copy;
+		transitionSamples = sampled.collect { |pairs, index|
+			if (index < existingSize) {
+				pairs.asDict.reject { |value, key| (excludeParams ? []).includes(key) }.asPairs
+			} {
+				pairs
+			};
+		};
+		mergedParams = this.mergeParams({ |i| transitionSamples[i] }, from, to);
+		rampRoutine = {
+			var startTime = thisThread.seconds;
+			block { |break|
+				inf.do {
+					var delta = thisThread.seconds - startTime;
+					if (delta >= duration) {
+						this.prSet(mergedParams, from, to);
+						rampRoutine = nil;
+						break.value;
+					} {
+						this.prSet(this.mapParams(startParams, mergedParams,
+							delta / duration, curve, from, to), from, to);
+					};
+					(1.0 / 30.0).wait;
+				};
+			};
+		}.fork;
+		^this;
 	}
 
 	linRampTo { |params, duration, from=nil, to=nil, excludeParams=nil|
@@ -343,6 +432,7 @@ SwarmSynth {
 
     closeGate { |from=nil, to=nil, fadeTime=nil|
 		var params = [\gate, 0];
+		this.cancelRamp;
 		if (fadeTime.notNil) {
 			params = params.addAll([\fadeTime, fadeTime]);
 		};
@@ -352,6 +442,7 @@ SwarmSynth {
 
 	// reset state without release
 	reset { |from=nil, to=nil|
+		this.cancelRamp;
 		if (from.isNil) {
 			this.prCloseAll;
 		} {
@@ -374,6 +465,7 @@ SwarmSynth {
 	}
 
 	release { |from=nil, to=nil|
+		this.cancelRamp;
 		if (from.isNil) {
 			group.freeAll;
 			this.prCloseAll;
@@ -387,6 +479,20 @@ SwarmSynth {
 			};
 		};
 		this.prCleanUp;
+	}
+
+	dispose {
+		if (disposed.not) {
+			disposed = true;
+			groupGeneration = groupGeneration + 1;
+			CmdPeriod.remove(cmdPeriodAction);
+			this.cancelRamp;
+			group.freeAll;
+			group.free;
+			this.prCloseAll;
+			this.prCleanUp;
+		};
+		^this;
 	}
 
 	prRemove { |i|

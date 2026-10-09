@@ -1,0 +1,46 @@
+CLASS:: SwarmDensityAutomation
+summary:: Grow a SwarmMath density field inside the caller's Routine
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmMath, Classes/SwarmSynth
+
+DESCRIPTION::
+SwarmDensityAutomation reproduces the composition helper for gradually increasing a state's partial or variation count. It runs synchronously, yields on the caller's clock, and creates no scheduler or child Routine. Stopping the caller therefore stops progression.
+
+The interpolation is intentionally grow-only. It samples exponential progress from elapsed seconds, floors each value to an integer, and updates only when that value exceeds the state's current count. The loop does not force the final endpoint.
+
+CLASSMETHODS::
+
+METHOD:: run
+Runs density automation and returns when elapsed progress reaches one.
+
+argument:: state
+An object with mutable code::partials:: and code::variations:: properties, normally SwarmMath.
+
+argument:: synth
+An object implementing code::rampTo(state, rampTime)::, normally SwarmSynth.
+
+argument:: key
+Exactly code::\partials:: or code::\variations::.
+
+argument:: duration
+Positive finite elapsed time in seconds. Progress uses code::thisThread.seconds::.
+
+argument:: from
+Positive whole-number start of the exponential interpolation.
+
+argument:: to
+Positive whole-number target of the exponential interpolation. The target is not assigned after the loop.
+
+argument:: rampTime
+Nonnegative finite transition time passed to code::synth.rampTo::. After each change the caller waits code::rampTime + 0.1:: beats, followed by the regular 0.1-beat polling wait. The default is 0.3.
+
+EXAMPLES::
+
+code::
+Routine {
+    SwarmDensityAutomation.run(
+        ~droneState, ~drone, \partials,
+        duration: 180, from: ~droneState.partials, to: 50
+    );
+}.play(TempoClock.default);
+::

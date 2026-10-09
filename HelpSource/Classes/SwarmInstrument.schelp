@@ -1,0 +1,109 @@
+CLASS:: SwarmInstrument
+summary:: Select named spectral definitions around one SwarmMath state
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmMath, Classes/SwarmSynth
+
+DESCRIPTION::
+SwarmInstrument keeps named timbre variants separate from score scheduling. A variant replaces the state's complete spectral argument dictionary and may provide default partial and variation counts. Pitch, volume, output routing, duration, and gate values remain attached to the existing state.
+
+The term code::variant:: means a named timbre definition. link::Classes/SwarmMath:: code::variations:: continues to mean multiple generated voices per partial.
+
+CLASSMETHODS::
+
+METHOD:: new
+argument:: synthDef
+The single SynthDef used by this instrument.
+argument:: state
+The SwarmMath instance whose identity is retained.
+argument:: variants
+A nonempty dictionary mapping symbols to definitions. Each definition contains a complete code::args:: dictionary and optional code::partials:: and code::variations:: counts. If one variant omits a control used by another, its neutral value must exist in code::defaultParams:: or the registered SynthDesc; construction fails rather than guessing a value.
+argument:: variant
+The selected definition, initially code::\original::.
+argument:: defaultParams
+Default controls forwarded to a lazily created SwarmSynth.
+argument:: hasGate
+Forwarded to SwarmSynth.
+argument:: liveSwitch
+code::\sustained:: updates active nodes. code::\nextTrigger:: leaves active nodes unchanged until the next play call.
+argument:: synth
+An optional borrowed playback object. If omitted, SwarmSynth is created on first playback and owned by this wrapper.
+
+INSTANCEMETHODS::
+
+METHOD:: variantNames
+Returns the sorted available names.
+
+METHOD:: variants
+Returns a defensive copy. Editing it cannot change registered definitions.
+
+METHOD:: variant
+Returns the selected name. Assigning a name performs an immediate switch.
+
+METHOD:: state
+Returns the retained SwarmMath state.
+
+METHOD:: synth
+Returns the playback object, or nil before lazy construction.
+
+METHOD:: setVariant
+Selects a definition atomically.
+argument:: name
+Registered variant name.
+argument:: transitionTime
+Zero updates sustained playback immediately. A positive value linearly transitions to one sampled target.
+argument:: preserveDimensions
+When true, retain the state's current partial and variation counts instead of applying counts stored in the variant.
+argument:: applyLive
+When false, update selection and state without touching active playback. This is useful when a cue applies a preset separately.
+
+Existing nodes retain phase and pan. Added nodes receive the new definition normally. A new switch cancels an earlier transition.
+
+All generated ratios and frequencies, and numeric amplitudes, are validated before selection is committed. Validation-only sampling for idle and next-trigger instruments restores the random stream; active sustained switches reuse their one sampled target during playback.
+
+METHOD:: reapplyVariant
+Restores the currently selected definition after runtime timbre edits without changing its name. By default this preserves dimensions and does not touch active playback, which lets cue code restore a preset before issuing its existing playback update. Optional live application follows the same transition rules as code::setVariant::.
+
+METHOD:: cloneStateForVariant
+Returns an independent SwarmMath copy for inspection or private audition. It does not change selection or playback.
+
+METHOD:: bind
+Rebinds state and playback references without applying the selected definition. This supports composition registries whose globals may be replaced during live coding.
+
+METHOD:: play
+Applies an Event through SwarmMath pitch resolution, creates owned playback if necessary, and delegates playback. Duration and gate scheduling remain the caller's responsibility.
+
+METHOD:: closeGate
+Cancels transitions and closes active gates.
+
+METHOD:: release
+Cancels transitions and releases playback nodes.
+
+METHOD:: dispose
+Cancels transitions and disposes only playback created by this wrapper. Borrowed playback remains owned by its caller.
+
+EXAMPLES::
+
+code::
+(
+var variants = (
+    original: (args: (
+        freq: { |e| e.freq * e.p1 },
+        amp: { |e| e.vol / e.p1 }, phase: { 0 }, pan: { 0 }
+    ), partials: 12, variations: 1),
+    revised: (args: (
+        ratio: { |e| e.p1 ** 1.08 },
+        freq: { |e| SwarmMath.freqRatio(e) },
+        amp: { |e| SwarmMath.ampPower(e, 2) * e.vol },
+        phase: { 0 }, pan: { 0 }
+    ), partials: 12, variations: 1)
+);
+
+~voice = SwarmInstrument.new(\swarm_partial,
+    SwarmMath.new([110], 12, 1, variants[\original][\args], 0.08),
+    variants, variant: \original);
+~voice.play((midinote: 45));
+~voice.setVariant(\revised, transitionTime: 0.5, preserveDimensions: true);
+~voice.closeGate;
+~voice.dispose;
+)
+::

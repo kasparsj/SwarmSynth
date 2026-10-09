@@ -1,0 +1,30 @@
+CLASS:: SwarmAuditionGUI
+summary:: Lazy Qt presentation for a SwarmAudition facade
+categories:: Libraries>SwarmSynth
+related:: Classes/SwarmPartialPlotData, Classes/SwarmInstrument
+
+DESCRIPTION::
+SwarmAuditionGUI renders common instrument, playback, spectrum, descriptor, and cached-partial controls around an Event facade. Construction creates no Qt objects. Call code::open:: to build and show the window.
+
+The facade supplies controller state and method functions. In particular it exposes code::names::, code::selected::, code::settings::, code::context::, code::status::, code::partialCapture:: and the controller methods used by SwarmAudition. The GUI publishes code::window:: and code::guiViews:: on the facade for lifecycle management and testing. Closing detaches status and partial callbacks and stops private playback.
+
+CLASSMETHODS::
+
+METHOD:: new
+argument:: controller
+The SwarmAudition Event facade.
+argument:: options
+An Event controlling presentation. Supported keys include code::title::, code::formatName::, code::variantChoices::, code::variantLabels::, code::modes::, code::modeLabels::, code::routeChoices::, code::routeLabels::, and code::extraControls::.
+
+code::extraControls:: receives the controller and a refresh callback. It may return a View or an Event with code::view::, code::handles:: and code::refresh::. Handles are merged into code::guiViews::.
+
+INSTANCEMETHODS::
+
+METHOD:: open
+Lazily builds the scrollable Qt window, installs guarded controller callbacks, prepares a partial preview when needed, and brings the window forward. Returns the receiver immediately.
+
+EXAMPLES::
+
+code::
+~audition.open; // SwarmAudition delegates to SwarmAuditionGUI
+::
