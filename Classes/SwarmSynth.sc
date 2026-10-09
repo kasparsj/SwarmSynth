@@ -1,12 +1,15 @@
 SwarmSynth {
     var instrument, <>hasGate, <>defaultParams, <>group, <>synths, <>params, <>rampRoutine;
-	var cmdPeriodAction, groupGeneration = 0, <disposed = false;
+	var cmdPeriodAction, groupGeneration = 0, <disposed = false, <targetGroup;
 
-    *new { |synthDef, defaultParams, hasGate=true|
-		var inst = super.newCopyArgs(synthDef, hasGate, defaultParams, Group.new, [], []);
+    *new { |synthDef, defaultParams, hasGate=true, targetGroup=nil|
+		var inst = super.newCopyArgs(synthDef, hasGate, defaultParams, Group.new(targetGroup), [], []);
+		inst.initTarget(targetGroup);
 		inst.init;
 		^inst;
     }
+
+	initTarget { |target| targetGroup = target; ^this }
 
 	init {
 		cmdPeriodAction = {
@@ -18,7 +21,7 @@ SwarmSynth {
 				generation = groupGeneration;
 				{
 					if (disposed.not and: { generation == groupGeneration }) {
-						group = Group.new;
+						group = Group.new(targetGroup);
 					};
 				}.defer(0.1);
 			};

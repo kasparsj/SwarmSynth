@@ -1,0 +1,31 @@
+cabal-version:      2.4
+name:               swarm-synth-tidal
+version:            0.1.0
+synopsis:           TidalCycles controls for the SwarmSynth SuperDirt adapter
+description:        Pure TidalCycles controls, persistent-voice commands, and
+                    standard sound helpers for the optional SwarmSynth
+                    SuperDirt adapter.
+category:           Sound
+license:            GPL-3.0-only
+build-type:         Simple
+
+library
+  exposed-modules:     Sound.Tidal.SwarmSynth
+  hs-source-dirs:       src
+  build-depends:
+      base >=4.18 && <5
+    , tidal-core ==1.10.1
+  default-language:    Haskell2010
+  ghc-options:         -Wall
+
+test-suite swarm-synth-tidal-tests
+  type:                exitcode-stdio-1.0
+  main-is:             Main.hs
+  hs-source-dirs:       tests
+  build-depends:
+      base >=4.18 && <5
+    , containers >=0.6 && <0.8
+    , swarm-synth-tidal
+    , tidal-core ==1.10.1
+  default-language:    Haskell2010
+  ghc-options:         -Wall

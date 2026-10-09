@@ -1,0 +1,37 @@
+:set -fno-warn-orphans -Wno-type-defaults -XMultiParamTypeClasses -XOverloadedStrings
+:set prompt ""
+
+import Control.Concurrent (threadDelay)
+import Sound.Tidal.Boot
+import Sound.Tidal.SwarmSynth
+
+default (Rational, Integer, Double, Pattern String)
+
+tidalInst <- startTidal (superdirtTarget { oPort = 57220, oLatency = 0.05 }) (defaultConfig { cEnableLink = False, cCtrlListen = False })
+streamSetCPS tidalInst 0.5
+
+streamReplace tidalInst 1 $ fast 4 $ stack [n "0 4 7" # s "swMarimba" # gain 0.025 # orbit 0, n "12 ~ 7 ~" # s "swBell" # gain 0.015 # orbit 0]
+threadDelay 1000000
+
+streamReplace tidalInst 2 $ swHold $ s "swVoice" # swInstrument "swOrgan" # swVoiceId 42 # n "-12" # swPartials 3 # swVariations 1 # gain 0.02 # pan (-0.2) # orbit 0
+threadDelay 1000000
+
+streamReplace tidalInst 2 $ swHold $ s "swVoice" # swInstrument "swOrgan" # swVoiceId 42 # n "-12" # swPartials 5 # swVariations 1 # swDetune 0.006 # swRampSeconds 0.4 # gain 0.02 # pan 0.2 # orbit 0
+threadDelay 1000000
+
+streamReplace tidalInst 2 $ swHold $ s "swVoice" # swInstrument "swOrgan" # swVoiceId 42 # n "-12" # swPartials 3 # swVariations 2 # swGrowSeconds 0.6 # swGrowPartials 8 # swGrowVariations 1 # gain 0.02 # pan 0 # orbit 0
+threadDelay 2200000
+
+streamSilence tidalInst 1
+streamSilence tidalInst 2
+threadDelay 1800000
+
+streamReplace tidalInst 3 $ swHold $ s "swVoice" # swInstrument "swClarinet" # swVoiceId 43 # n "-5" # swPartials 3 # gain 0.02 # orbit 0
+threadDelay 800000
+
+streamSilence tidalInst 3
+threadDelay 300000
+streamOnce tidalInst $ s "swPanic"
+threadDelay 1200000
+streamHush tidalInst
+:quit

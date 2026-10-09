@@ -1,7 +1,7 @@
 (
   name: "SwarmSynth",
   summary: "Swarm / additive synth for SuperCollider",
-  version: "0.0.1",
+  version: "0.0.2",
   schelp: "SwarmSynth.schelp",
   license: "GPL",
   copyright: "Kaspars Jaudzems, 2023"

@@ -1,0 +1,31 @@
+-- Load Sound.Tidal.SwarmSynth in BootTidal first, and install the optional
+-- SwarmSynth SuperDirt adapter in SuperCollider.
+
+-- Pitch supplies the rhythm: # takes event structure from its left side.
+d1 $ n "0 2 4 7" # swFlute # octave 5 # swPartials 16 # gain 0.65
+
+d2 $ slow 2 $ n "<0 3 5 2>" # swClarinet # octave 4 # swDetune 0.006
+
+d3 $ n "[0,4,7]" # swOrgan # octave 3 # swVariations 16 # room 0.4
+
+d4 $ slow 2 $ n "0 7 5 3" # swMarimba # octave 5 # swPartials 12
+
+d5 $ slow 4 $ n "0 5 9" # swBell # octave 6 # swVariant "bright" # room 0.7
+
+-- Persistent voice: swHold adds the hold operation and a 16/cycle heartbeat.
+d6 $ swHold
+   $ s "swVoice"
+   # swInstrument "swOrgan"
+   # swVoiceId 1
+   # n "0"
+   # octave 3
+   # swPartials 48
+   # swRampSeconds 1
+
+once $ swRelease 1 # orbit 5
+
+-- Immediate removal, without a release tail:
+once $ swFree 1 # orbit 5
+
+-- Emergency cleanup uses the action bound in BootTidal:
+swPanic

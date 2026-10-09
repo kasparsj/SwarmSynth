@@ -35,6 +35,7 @@ python3 tests/run-playback.py
 python3 tests/run-registry.py
 python3 tests/run-density-automation.py
 python3 tests/run-swarm-audition.py
+python3 tests/run-swarm-audition-owner.py
 python3 tests/run-audition-nyquist.py
 python3 tests/run-synthdefs.py
 python3 tests/run-standard-instruments.py
@@ -47,3 +48,26 @@ covered contracts and numeric audio behavior, not an artistic audition.
 
 Runners find the SuperCollider application on macOS by default. Set `SCLANG`,
 `SC_CLASS_LIBRARY`, and, for offline renders, `SCSYNTH` to override its paths.
+
+## Optional run ownership
+
+`SwarmAudition` accepts a `runOwner` option for composition adapters that already
+use a lifecycle manager. The factory receives `(facade, run)` after the root
+Routine has been constructed and before it is scheduled. Return an object with
+`run`, `fork`, `cleanup`, and `children`; the existing `run[\children]` field is
+then an alias of the owner's collection. Without this option audition playback
+uses its built-in ownership exactly as before, and SwarmSynth has no dependency
+on StochasticSequencer.
+
+Install and recompile SwarmSynth first, followed by an optional owner library
+such as StochasticSequencer, then reload the composition setup. Stop playback
+before recompiling the SuperCollider class library. A cleanup callback should
+pass its captured run to `facade[\stopAudition].value(facade, run)` so a retired
+owner cannot stop a replacement audition.
+
+## Optional TidalCycles companion
+
+See [the Haskell package](tidal/README.md) and [the explicitly installed
+SuperDirt adapter](superdirt/README.md) for independent standard-instrument notes
+and persistent swHold voices. Neither integration is required by the core
+SuperCollider classes.
