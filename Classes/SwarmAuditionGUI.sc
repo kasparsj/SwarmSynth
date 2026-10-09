@@ -22,6 +22,7 @@ SwarmAuditionGUI {
 		var ratioPowerBox, stiffnessBox, ampPowerBox, ampSlopeBox;
 		var playButton, stopButton, resetButton, refreshButton, extension, extensionHandles = ();
 		var refreshAll, refreshStatus, refreshCount, refreshPartials, rebuildDescriptors, currentSettings;
+		var closeCleanup;
 		var safe, invoke, updateFrequencies, parseFrequencies, setMenu, formatName, makeNumberRow, makeDescriptorRow;
 		var partialData, partialPoints = #[], hoverRecord, baseChoices = [nil], variationChoices = [nil];
 		var partialAxis = \frequency, partialDisplay = \generated, partialBase, partialVariation;
@@ -484,7 +485,7 @@ SwarmAuditionGUI {
 
 		root = VLayout(
 			HLayout(StaticText().string_("Instrument").fixedWidth_(170), instrumentMenu),
-			HLayout(StaticText().string_("Timbre variant").fixedWidth_(170), variantMenu),
+			HLayout(StaticText().string_(options[\variantSelectorLabel] ? "Timbre variant").fixedWidth_(170), variantMenu),
 			HLayout(StaticText().string_("Playback mode").fixedWidth_(170), modeMenu),
 			HLayout(StaticText().string_("Pitch / chord (Hz, comma-separated)").fixedWidth_(260), pitchField),
 			HLayout(StaticText().string_("Duration (seconds)").fixedWidth_(170), durationBox),
@@ -538,7 +539,7 @@ SwarmAuditionGUI {
 			partialBase: baseMenu, partialVariation: variationMenu,
 			refreshControls: refreshAll
 		).putAll(extensionHandles);
-		window.onClose_({
+		closeCleanup = {
 			if (closing.not and: { facade[\window] === window
 				and: { facade[\guiOpenGeneration] == generation } }) {
 				closing = true;
@@ -548,6 +549,16 @@ SwarmAuditionGUI {
 				facade[\window] = nil;
 				owner.use { facade[\stopAudition].value(facade) };
 			};
+		};
+		window.onClose_(closeCleanup);
+		// Qt can close a heavily updated window without delivering its language
+		// onClose callback. Keep the same idempotent ownership cleanup as a
+		// fallback while this generation owns the facade window.
+		AppClock.sched(0.05, {
+			if (closing.not and: { facade[\window] === window
+				and: { facade[\guiOpenGeneration] == generation } }) {
+				if (window.isClosed) { closeCleanup.value; nil } { 0.05 }
+			} { nil };
 		});
 		facade[\onStatus] = { |message|
 			{

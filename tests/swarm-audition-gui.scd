@@ -124,7 +124,13 @@ try {
 			0.2.wait;
 			check.(facade[\window].notNil and: { facade[\window] !== firstWindow },
 				"Reopen reused a closed window");
+			// Simulate Qt closing the native window without delivering onClose.
+			// The generation-guarded monitor must run the same ownership cleanup.
+			facade[\window].onClose_({});
 			facade[\window].close;
+			0.15.wait;
+			check.(facade[\window].isNil and: { facade[\guiViews].isNil },
+				"Closed-window fallback retained GUI ownership");
 			audition.dispose;
 			"PASS: standalone SwarmAuditionGUI variants, cached plot, and lifecycle".postln;
 			0.exit;

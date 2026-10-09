@@ -4,6 +4,7 @@ var check, makeState, variants, registry, environment, playback;
 var audition, facade, production, baseline, prepared, error, calls = 0;
 var first, second, savedRandom, recording, run, plotted, callbacks;
 var noPhraseHooks, phraseAudition, phraseFacade, phraseCalls = 0;
+var variantSettingNames = List.new, variantKeyNames = List.new, beforeSelection;
 
 check = { |condition, message| if (condition.not) { Error(message).throw } };
 makeState = { |frequency=123, partials=3, variations=2|
@@ -23,14 +24,26 @@ variants = (
 		ratio: { |event| event.p1 },
 		freq: { |event| event.freq * event.ratio },
 		amp: { |event| event.vol / event.ratio },
-		phase: { 0 }, pan: { 0 }, out: 0, tone: 0.25, nyquistMode: -1
+		phase: { 0 }, pan: { 0 }, out: 0, tone: 0.5, nyquistMode: -1
 	), partials: 3, variations: 2),
 	glass: (args: (
 		ratio: { |event| event.p1.squared },
 		freq: { |event| SwarmMath.freqRatio(event) },
 		amp: { |event| event.vol / event.p1.squared },
 		phase: { 0 }, pan: { 0 }, out: 0, tone: 0.75, nyquistMode: -1
-	), partials: 4, variations: 1)
+	), partials: 4, variations: 1),
+	huge: (args: (
+		ratio: { |event| event.p1 },
+		freq: { |event| event.freq * event.ratio },
+		amp: { |event| event.vol / event.ratio },
+		phase: { 0 }, pan: { 0 }, out: 0, tone: 1, nyquistMode: -1
+	), partials: 9, variations: 2),
+	sparse: (args: (
+		ratio: { |event| event.p1 },
+		freq: { |event| event.freq * event.ratio },
+		amp: { |event| event.vol / event.ratio },
+		phase: { 0 }, pan: { 0 }, out: 0, tone: 0.6, nyquistMode: -1
+	))
 );
 
 try {
@@ -67,8 +80,11 @@ try {
 		SwarmAudition.new(registry, (
 			nodeLimit: 16,
 			captureContext: { (routes: (dry: 0), token: \captured) },
-			variantSettings: { |selected| (variant: selected, duration: 0.04, gap: 0.02) },
-			variantKey: { |variant, preset| variant }
+			variantSettings: { |selected, name|
+				variantSettingNames.add(name);
+				(variant: selected, duration: 0.04, gap: 0.02)
+			},
+			variantKey: { |variant, preset, name| variantKeyNames.add(name); variant }
 		))
 	};
 	facade = audition.facade;
@@ -84,8 +100,64 @@ try {
 		"Capture shared production SwarmMath state");
 	check.(facade[\settings][\nebulaVoice][\duration] == 0.04,
 		"variantSettings did not initialize private settings");
-	check.(facade[\variantChoices].value(facade) == [\glass, \plain],
+	check.(facade[\variantChoices].value(facade) == [\glass, \huge, \plain, \sparse],
 		"Arbitrary variants were not exposed in sorted order");
+	check.(variantSettingNames.asArray == [\nebulaVoice],
+		"Capture did not identify the instrument to variantSettings");
+
+	// Explicit selection adopts a complete named definition even when its key
+	// matches the captured live variant, while retaining playback controls.
+	audition.update(\duration, 0.5);
+	audition.update(\level, 0.4);
+	audition.update(\nyquistMode, 2);
+	audition.control(\tone, 0.1);
+	facade[\settings][\nebulaVoice][\preset] = \stale;
+	audition.selectVariant(\plain);
+	check.(facade[\settings][\nebulaVoice][\useVariantDefaults]
+		and: { facade[\settings][\nebulaVoice][\overrides].isEmpty }
+		and: { facade[\settings][\nebulaVoice][\preset].isNil },
+		"Named selection did not force defaults and clear overrides");
+	check.([facade[\settings][\nebulaVoice][\partials], facade[\settings][\nebulaVoice][\variations]]
+		== [3, 2], "Named selection did not adopt variant dimensions");
+	check.(facade[\settings][\nebulaVoice][\duration] == 0.5
+		and: { facade[\settings][\nebulaVoice][\level] == 0.4 }
+		and: { facade[\settings][\nebulaVoice][\nyquistMode] == 2 },
+		"Named selection changed retained runtime controls");
+	prepared = facade[\prepare].value(facade, \nebulaVoice, [123]);
+	check.(prepared.args[\tone] == 0.5,
+		"Same-key named selection reused captured live arguments");
+	check.(facade[\descriptors].value(facade, \nebulaVoice).first[\default] == 0.5,
+		"Descriptor default ignored explicit named selection");
+	check.(variantKeyNames.every { |name| name == \nebulaVoice },
+		"Variant resolution received the wrong instrument name");
+	beforeSelection = facade[\settings][\nebulaVoice].copy;
+	error = try { audition.selectVariant(\huge); nil } { |caught| caught };
+	check.(error.notNil and: { error.what.contains("exceeds") },
+		"Named selection accepted dimensions above the node limit");
+	check.(facade[\settings][\nebulaVoice][\variant] == beforeSelection[\variant]
+		and: { facade[\settings][\nebulaVoice][\partials] == beforeSelection[\partials] }
+		and: { facade[\settings][\nebulaVoice][\useVariantDefaults]
+			== beforeSelection[\useVariantDefaults] },
+		"Rejected oversized selection mutated settings");
+	error = try { audition.selectVariant(\missing); nil } { |caught| caught };
+	check.(error.notNil and: { facade[\settings][\nebulaVoice][\variant]
+		== beforeSelection[\variant] }, "Missing named selection mutated settings");
+	audition.selectVariant(\sparse);
+	check.([facade[\settings][\nebulaVoice][\partials], facade[\settings][\nebulaVoice][\variations]]
+		== [beforeSelection[\partials], beforeSelection[\variations]],
+		"Named selection did not retain dimensions omitted by a variant");
+	prepared = facade[\prepare].value(facade, \nebulaVoice, [123]);
+	check.(prepared.args[\tone] == 0.6,
+		"Named selection did not apply an argument-only variant");
+	facade[\settings][\nebulaVoice][\preset] = \stale;
+	audition.resetInstrument;
+	check.(facade[\settings][\nebulaVoice][\useVariantDefaults].not,
+		"Reset retained explicit named-selection state");
+	check.(facade[\settings][\nebulaVoice][\preset].isNil,
+		"Reset retained an optional preset omitted by the captured mapping");
+	prepared = facade[\prepare].value(facade, \nebulaVoice, [123]);
+	check.(prepared.args[\tone] == 0.25,
+		"Reset did not restore captured live arguments");
 
 	audition.update(\variant, \glass);
 	prepared = facade[\prepare].value(facade, \nebulaVoice, [200]);

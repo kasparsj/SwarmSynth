@@ -92,11 +92,15 @@ SwarmAudition {
     },
     gated: { |self, name| registry.metadata(name)[\auditionGate] ?? { registry.instrument(name, owner).hasGate };
     },
-    variantKey: { |self, variant, preset| options[\variantKey] !? { |action| variant = action.value(variant, preset) }; variant;
+    variantKey: { |self, variant, preset, name=nil|
+        options[\variantKey] !? { |action|
+            variant = action.value(variant, preset, name ? self.selected)
+        };
+        variant;
     },
     definition: { |self, name|
         var settings = self.settings[name];
-        var key = self[\variantKey].value(self, settings.variant, settings[\preset]);
+        var key = self[\variantKey].value(self, settings.variant, settings[\preset], name);
         self.variantDefinitions[name][key];
     },
     descriptors: { |self, name|
@@ -108,8 +112,10 @@ SwarmAudition {
                 value = baseline.args[descriptor.key];
                 if (settings.notNil) {
                     definition = self[\definition].value(self, name);
-                    if (self[\variantKey].value(self, settings.variant, settings[\preset])
-                        != self.capturedVariants[name]) {
+                    if ((settings[\useVariantDefaults] ? false) or: {
+                        self[\variantKey].value(self, settings.variant, settings[\preset], name)
+                            != self.capturedVariants[name]
+                    }) {
                         value = definition[\args][descriptor.key] ? value;
                     };
                 };
@@ -132,7 +138,7 @@ SwarmAudition {
             self.names.do { |name|
                 var instrument = registry.instrument(name, owner), state = instrument.state;
                 var selected = instrument.variant, selection;
-                selection = if(options[\variantSettings].notNil) { options[\variantSettings].value(selected) } { (variant: selected) };
+                selection = if(options[\variantSettings].notNil) { options[\variantSettings].value(selected, name) } { (variant: selected) };
                 self.variantDefinitions[name] = instrument.variants;
                 self.capturedVariants[name] = selected;
                 self.baselines[name] = self[\cloneState].value(self, state);
@@ -142,7 +148,9 @@ SwarmAudition {
                     partials: state.partials, variations: state.variations,
                     ratioMode: \original, ratioPower: 1.5, stiffness: 0.001,
                     ampMode: \original, ampPower: 1, ampSlope: 0.1, nyquistMode: -1,
+                    useVariantDefaults: false,
                     overrides: Dictionary.new).putAll(selection);
+                self.settings[name][\useVariantDefaults] = false;
             };
         };
         self.context = context;
@@ -162,6 +170,42 @@ SwarmAudition {
         if (self.context.isNil) { self[\capture].value(self) };
         self.selected = name;
         self[\notify].value(self, "Selected " ++ name ++ " — stopped");
+        self[\previewPartials].value(self);
+    },
+    selectVariant: { |self, key|
+        var name = self.selected, settings = self.settings[name];
+        var definitions, definition, selection, proposed, resolvedKey;
+        var runtimeKeys = #[freqs, duration, gap, tempo, route, mode, level, nyquistMode];
+        self[\checkActive].value(self);
+        if (settings.isNil) { Error("Refresh the audition settings first.").throw };
+        definitions = self.variantDefinitions[name];
+        definition = definitions !? { definitions[key] };
+        if (definition.isNil) { Error("Missing private timbre variant: " ++ key).throw };
+        selection = if(options[\variantSettings].notNil) {
+            options[\variantSettings].value(key, name)
+        } {
+            (variant: key)
+        };
+        selection = selection ? ();
+        proposed = settings.copy;
+        proposed.removeAt(\preset);
+        proposed.putAll(selection);
+        runtimeKeys.do { |runtimeKey| proposed[runtimeKey] = settings[runtimeKey] };
+        resolvedKey = self[\variantKey].value(self, proposed.variant, proposed[\preset], name);
+        if (resolvedKey != key) {
+            Error("Variant settings do not resolve to private timbre variant: " ++ key).throw;
+        };
+        proposed.putAll((
+            partials: definition[\partials] ? settings.partials,
+            variations: definition[\variations] ? settings.variations,
+            ratioMode: \original, ampMode: \original,
+            useVariantDefaults: true, overrides: Dictionary.new
+        ));
+        self[\validate].value(self, proposed, proposed.freqs);
+        self[\stopAudition].value(self);
+        settings.removeAt(\preset);
+        settings.putAll(proposed);
+        self[\notify].value(self, "Selected " ++ key ++ " timbre — stopped");
         self[\previewPartials].value(self);
     },
     nodeCount: { |self|
@@ -225,8 +269,11 @@ SwarmAudition {
         settings.putAll((freqs: baseline.freqs.copy, partials: baseline.partials,
             variations: baseline.variations, level: 1, ratioMode: \original,
             ampMode: \original, ratioPower: 1.5, stiffness: 0.001,
-            ampPower: 1, ampSlope: 0.1, nyquistMode: -1, overrides: Dictionary.new));
-        settings.putAll(if(options[\variantSettings].notNil) { options[\variantSettings].value(self.capturedVariants[name]) } { (variant: self.capturedVariants[name]) });
+            ampPower: 1, ampSlope: 0.1, nyquistMode: -1,
+            useVariantDefaults: false, overrides: Dictionary.new));
+        settings.removeAt(\preset);
+        settings.putAll(if(options[\variantSettings].notNil) { options[\variantSettings].value(self.capturedVariants[name], name) } { (variant: self.capturedVariants[name]) });
+        settings[\useVariantDefaults] = false;
         self[\notify].value(self, "Restored captured " ++ name ++ " timbre");
         self[\previewPartials].value(self);
     },
@@ -234,8 +281,8 @@ SwarmAudition {
         var settings = self.settings[name], state, definition, key, ratioMode, ratioPower, power, stiffness, ampMode, slope;
         self[\validate].value(self, settings, frequencies);
         state = self[\cloneState].value(self, self.baselines[name]);
-        key = self[\variantKey].value(self, settings.variant, settings[\preset]);
-        if (key != self.capturedVariants[name]) {
+        key = self[\variantKey].value(self, settings.variant, settings[\preset], name);
+        if ((settings[\useVariantDefaults] ? false) or: { key != self.capturedVariants[name] }) {
             definition = self[\definition].value(self, name);
             if (definition.isNil) { Error("Missing private timbre variant: " ++ key).throw };
             state.args = Dictionary.newFrom(definition[\args].deepCopy.asPairs);
@@ -449,6 +496,7 @@ SwarmAudition {
     capture { ^facade[\capture].value(facade); }
     refresh { ^facade[\refresh].value(facade); }
     select { |name| ^facade[\select].value(facade, name); }
+    selectVariant { |key| ^facade[\selectVariant].value(facade, key); }
     update { |key, value| ^facade[\update].value(facade, key, value); }
     control { |key, value| ^facade[\control].value(facade, key, value); }
     resetInstrument { ^facade[\resetInstrument].value(facade); }
