@@ -38,4 +38,5 @@ Ndef(\delay, {
 
 )
 
-// NdefGui.new(Ndef(\miverb))
+// n = NdefGui.new
+// n.object_(Ndef(\miverb));
