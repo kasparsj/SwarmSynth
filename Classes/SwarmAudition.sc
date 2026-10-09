@@ -60,6 +60,8 @@ SwarmAudition {
     },
     sampledPartials: { |self, run, state, createNew=true, excludeParams=nil|
         var records = state.playbackSnapshot, sampled, merged, displayed = List.new;
+        var metadata = registry.metadata(run[\name]);
+        var releaseKey = metadata[\releaseKey] ? \release, releases;
         sampled = records.collect { |record| record[\values].asPairs };
         run[\synth].setSampled(sampled, excludeParams: excludeParams, createNew: createNew);
         // Backend params contain the merged controls actually sent, including
@@ -71,6 +73,12 @@ SwarmAudition {
                 copy[\values] = Dictionary.newFrom(merged[index]).deepCopy;
                 displayed.add(copy);
             };
+        };
+        // Cache numeric controls while nodes still exist; closeGate clears params.
+        releases = displayed.collect { |record| record[\values][releaseKey] }
+            .select { |value| self[\finite].value(self, value) };
+        run[\releaseTime] = if (releases.notEmpty) { releases.maxItem.max(0) } {
+            metadata[\releaseTime] ? 0.01
         };
         self[\publishPartials].value(self, displayed.asArray, run[\name], \playing);
     },
@@ -421,9 +429,7 @@ SwarmAudition {
                             self[\note].value(self, run, settings.freqs, settings.duration * run[\clock].tempo);
                             if (settings.mode == \single) {
                                 // Allow the private release envelope before removing the group.
-                                var metadata = registry.metadata(run[\name]);
-                                var releaseKey = metadata[\releaseKey] ? \release;
-                                var release = run[\state].args[releaseKey] ? metadata[\releaseTime] ? 0.01;
+                                var release = run[\releaseTime] ? 0.01;
                                 (release * run[\clock].tempo + 0.02).wait;
                                 self[\stopAudition].value(self);
                             };

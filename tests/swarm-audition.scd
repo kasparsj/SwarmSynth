@@ -46,6 +46,9 @@ variants = (
 	))
 );
 
+variants[\functionalRelease] = variants[\glass].deepCopy;
+variants[\functionalRelease][\args][\release] = { |event| 0.1 * event.p1 };
+
 try {
 	environment = Environment.new;
 	production = makeState.();
@@ -100,7 +103,7 @@ try {
 		"Capture shared production SwarmMath state");
 	check.(facade[\settings][\nebulaVoice][\duration] == 0.04,
 		"variantSettings did not initialize private settings");
-	check.(facade[\variantChoices].value(facade) == [\glass, \huge, \plain, \sparse],
+	check.(facade[\variantChoices].value(facade) == [\functionalRelease, \glass, \huge, \plain, \sparse],
 		"Arbitrary variants were not exposed in sorted order");
 	check.(variantSettingNames.asArray == [\nebulaVoice],
 		"Capture did not identify the instrument to variantSettings");
@@ -248,6 +251,16 @@ try {
             check.(facade[\run].notNil, "Single ignored the selected definition release");
             0.30.wait;
             check.(facade[\run].isNil, "Single failed to clean up the variant release");
+            // Per-partial release generators must use their sampled maximum.
+            audition.selectVariant(\functionalRelease);
+            audition.update(\duration, 0.02);
+            audition.start;
+            0.10.wait;
+            check.(facade[\run].notNil, "Functional release stopped playback early");
+            0.25.wait;
+            check.(facade[\run].notNil, "Single ignored the longest partial release");
+            0.15.wait;
+            check.(facade[\run].isNil, "Functional release failed to complete");
 			beforeDispose = CmdPeriod.objects.size;
 			audition.dispose;
 			check.(CmdPeriod.objects.size == (beforeDispose - 1),
