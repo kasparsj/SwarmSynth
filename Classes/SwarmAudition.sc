@@ -149,10 +149,9 @@ SwarmAudition {
                 var selected = instrument.variant, selection;
                 selection = if(options[\variantSettings].notNil) { options[\variantSettings].value(selected, name) } { (variant: selected) };
                 self.variantDefinitions[name] = instrument.variants;
-                self.capturedVariants[name] = selected;
                 self.baselines[name] = self[\cloneState].value(self, state);
                 self.settings[name] = (variant: selected,
-                    freqs: state.freqs.copy, duration: 2, gap: 1,
+                    freqs: state.freqs.copy, duration: registry.metadata(name)[\defaultDuration] ? 2, gap: 1,
                     tempo: context[\tempo] ? options[\tempo] ? 1, route: \dry, mode: \single, level: 1,
                     partials: state.partials, variations: state.variations,
                     ratioMode: \original, ratioPower: 1.5, stiffness: 0.001,
@@ -160,6 +159,10 @@ SwarmAudition {
                     useVariantDefaults: false,
                     overrides: Dictionary.new).putAll(selection);
                 self.settings[name][\useVariantDefaults] = false;
+                // Adapters may expose aliases for the same sound. Compare their
+                // normalized key so refresh/reset retains captured live edits.
+                self.capturedVariants[name] = self[\variantKey].value(self,
+                    self.settings[name].variant, self.settings[name][\preset], name);
             };
         };
         self.context = context;

@@ -12,7 +12,7 @@ try {
     dirt = SuperDirt(2, capture);
     manager = ~installSwarmDirt.(dirt);
     manager.registerStandardInstruments;
-    check.([\swVoice, \swPanic, \swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell]
+    check.([\swVoice, \swPanic, \swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell, \swKick]
         .every { |name| dirt.soundLibrary.at(name).notNil },
         "real DirtSoundLibrary missed an adapter registration");
     orbit = DirtOrbit.newCopyArgs(dirt, 0, 0);
@@ -37,7 +37,7 @@ try {
         };
     };
     manager.dispose;
-    check.([\swVoice, \swPanic, \swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell]
+    check.([\swVoice, \swPanic, \swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell, \swKick]
         .every { |name| dirt.soundLibrary.at(name).isNil },
         "adapter disposal left registrations in real DirtSoundLibrary");
     dirt.free;

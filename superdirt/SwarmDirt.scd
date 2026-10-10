@@ -86,10 +86,13 @@
         },
         registerStandardInstruments: { |self|
             SwarmSynthDefs.partial(\swarm_partial).add;
+            SwarmSynthDefs.kick(\swarm_kick).add;
             SwarmInstruments.names.do { |name|
                 var sound = ("sw" ++ (name.asString[0].toUpper.asString ++ name.asString.drop(1))).asSymbol;
-                var instrument = SwarmInstruments.make(name);
-                self.registerInstrument(sound, instrument, SwarmInstruments.metadata(name)[\releaseTime]);
+                if (self.definitions[sound].isNil) {
+                    var instrument = SwarmInstruments.make(name);
+                    self.registerInstrument(sound, instrument, SwarmInstruments.metadata(name)[\releaseTime]);
+                };
             }; self;
         },
         prepare: { |self, name, event, previous=nil|
@@ -100,7 +103,9 @@
                 swNyquist: \nyquistMode, swVowel: \vowel, swVibratoSpeed: \vibratoSpeed,
                 swVibratoDepth: \vibratoDepth, swLPF: \lpf, swHPF: \hpf,
                 swSweepRatio: \f2mul, swComb1: \comb1, swComb2: \comb2,
-                swPulse: \pulse, swPulseFreq: \pulsef, swSaw: \saw, swSawFreq: \sawf);
+                swPulse: \pulse, swPulseFreq: \pulsef, swSaw: \saw, swSawFreq: \sawf,
+                swKickSweepRatio: \sweepRatio, swKickSweepTime: \sweepTime,
+                swKickAttack: \attack, swKickDrive: \drive);
             if (definition.isNil) { Error("Unknown SwarmDirt instrument: %".format(name)).throw };
             instrument = definition.instrument;
             variant = (event[\swVariant] ?? { previous !? { previous.variant } }) ?? { instrument.variant };

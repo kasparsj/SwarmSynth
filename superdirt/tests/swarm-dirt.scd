@@ -3,7 +3,7 @@ var root = "SWARM_DIRT_ROOT".getenv;
 var check, approx, expectError, capture, originalServer, library, dirt;
 var clock = 0.0, queue = List.new, runtime, advance, manager, previous;
 var orbit, dirtEvent, messages, noteEvent, secondNote, tokens, voiceEvent, voice, ids, oldCount;
-var growthKey, growthPartials, rampEvent, rampRoutine;
+var growthKey, growthPartials, rampEvent, rampRoutine, kickDefinition, kickRegistration, prepared;
 
 check = { |condition, message| if (condition.not) { Error(message).throw } };
 approx = { |actual, wanted, tolerance=0.0001| (actual - wanted).abs <= tolerance };
@@ -51,11 +51,39 @@ try {
     check.(manager.active and: { library.at(\swVoice).notNil and: { library.at(\swPanic).notNil } },
         "installer did not register command sounds");
     manager.registerStandardInstruments;
-    check.([\swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell].every { |name|
+    check.([\swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell, \swKick].every { |name|
         manager.definitions[name].notNil and: { library.at(name).notNil }
     }, "standard registrations were incomplete");
-    check.(manager.definitions.size == 5,
+    check.(manager.definitions.size == 6,
         "standard registration unexpectedly depended on project instruments");
+    check.(manager.definitions[\swKick].instrument.variantNames
+        == [\acoustic, \natural, \rough], "kick variants were not registered canonically");
+    prepared = manager.prepare(\swKick, (swVariant: "rough", swDetune: 0.03,
+        swKickSweepRatio: 7, swKickSweepTime: 0.02, swKickAttack: 0.003,
+        swKickDrive: 1.8));
+    check.(prepared.variant == \rough and: {
+        prepared.state.args[\detune] == 0.03 and: {
+        prepared.state.args[\sweepRatio] == 7 and: {
+        prepared.state.args[\sweepTime] == 0.02 and: {
+        prepared.state.args[\attack] == 0.003 and: {
+        prepared.state.args[\drive] == 1.8 } } } } },
+        "kick controls did not map to SynthDef arguments");
+    check.(manager.prepare(\swKick, (swVariant: "acoustic")).variant == \acoustic,
+        "kick acoustic variant did not prepare");
+
+    // Standard installation is additive on an existing manager. A project may
+    // own swKick and its catalog before asking for the other standard sounds.
+    manager.removeInstrument(\swKick);
+    voice = SwarmInstruments.make(\flute);
+    manager.registerInstrument(\swKick, voice, 0.4);
+    voice.dispose;
+    kickDefinition = manager.definitions[\swKick];
+    kickRegistration = manager.registrations[\swKick];
+    manager.registerStandardInstruments;
+    check.(manager.definitions[\swKick] === kickDefinition and: {
+        manager.registrations[\swKick] === kickRegistration and: {
+        manager.definitions[\swKick].instrument.variantNames == [\bright, \natural, \soft] }
+    }, "standard registration replaced an existing project swKick catalog");
 
     // Registration owns independent copies of the instrument and mutable state.
     voice = SwarmInstruments.make(\flute);
@@ -237,7 +265,7 @@ try {
             manager.nodeCount == 0 and: { manager.pendingCount == 0 }
         } }
     } }, "CmdPeriod did not synchronously clear adapter-owned resources");
-    check.([\swVoice, \swPanic, \swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell]
+    check.([\swVoice, \swPanic, \swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell, \swKick]
         .every { |name| library.at(name).notNil },
         "CmdPeriod uninstalled reusable Dirt registrations");
 
@@ -298,7 +326,7 @@ try {
     // Exercise the actual explicit installer, including relative-root resolution.
     ~dirt = dirt;
     (root +/+ "superdirt/examples/standard-instruments.scd").load;
-    check.(~swDirt.definitions.size == 5, "standard installer path or registrations failed");
+    check.(~swDirt.definitions.size == 6, "standard installer path or registrations failed");
     ~swDirt.dispose;
     Server.default = originalServer;
     "PASS: SwarmDirt adapter contracts".postln;

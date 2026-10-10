@@ -37,6 +37,10 @@ module Sound.Tidal.SwarmSynth
     swPulseFreq,
     swSaw,
     swSawFreq,
+    swKickSweepRatio,
+    swKickSweepTime,
+    swKickAttack,
+    swKickDrive,
 
     -- * Persistent voices
     swHold,
@@ -51,13 +55,14 @@ module Sound.Tidal.SwarmSynth
     swOrgan,
     swMarimba,
     swBell,
+    swKick,
   )
 where
 
 import Data.IORef (IORef, atomicWriteIORef, newIORef, readIORef)
 import Sound.Tidal.Core ((#))
 import Sound.Tidal.Pattern (ControlPattern, Pattern)
-import Sound.Tidal.Params (pF, pI, pS, s)
+import Sound.Tidal.Params (freq, pF, pI, pS, s)
 import Sound.Tidal.UI (segment)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -180,6 +185,22 @@ swSaw = pF "swSaw"
 swSawFreq :: Pattern Double -> ControlPattern
 swSawFreq = pF "swSawFreq"
 
+-- | Set the kick's starting-to-body frequency ratio.
+swKickSweepRatio :: Pattern Double -> ControlPattern
+swKickSweepRatio = pF "swKickSweepRatio"
+
+-- | Set the kick's pitch-sweep time in seconds.
+swKickSweepTime :: Pattern Double -> ControlPattern
+swKickSweepTime = pF "swKickSweepTime"
+
+-- | Set the kick's attack time in seconds.
+swKickAttack :: Pattern Double -> ControlPattern
+swKickAttack = pF "swKickAttack"
+
+-- | Set the kick's saturation drive.
+swKickDrive :: Pattern Double -> ControlPattern
+swKickDrive = pF "swKickDrive"
+
 swOp :: Pattern String -> ControlPattern
 swOp = pS "swOp"
 
@@ -238,3 +259,7 @@ swMarimba = s $ pure "swMarimba"
 -- | The standard registered bell sound.
 swBell :: ControlPattern
 swBell = s $ pure "swBell"
+
+-- | The standard registered kick sound, pitched at 55 Hz by default.
+swKick :: ControlPattern
+swKick = s (pure "swKick") # freq (pure 55)

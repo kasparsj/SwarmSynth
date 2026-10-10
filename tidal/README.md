@@ -55,6 +55,7 @@ swGrowPartials, swGrowVariations, swVowel :: Pattern Int -> ControlPattern
 swVibratoSpeed, swVibratoDepth, swLPF, swHPF :: Pattern Double -> ControlPattern
 swSweepRatio, swComb1, swComb2 :: Pattern Double -> ControlPattern
 swPulse, swPulseFreq, swSaw, swSawFreq :: Pattern Double -> ControlPattern
+swKickSweepRatio, swKickSweepTime, swKickAttack, swKickDrive :: Pattern Double -> ControlPattern
 ```
 
 Normal Tidal controls provide pitch, octave, gain, pan, orbit, room, size, and
@@ -64,13 +65,16 @@ name; Haskell never sends SuperCollider functions over OSC.
 The standard adapter registrations have ready-to-use sound patterns:
 
 ```haskell
-swFlute, swClarinet, swOrgan, swMarimba, swBell :: ControlPattern
+swFlute, swClarinet, swOrgan, swMarimba, swBell, swKick :: ControlPattern
 
 d1 $ n "0 2 4 7" # swFlute # octave 5 # swPartials 16
+d2 $ fast 2 $ swKick # swVariant "<natural rough acoustic>" # swKickDrive 1.3
 ```
 
 They are ordinary `s "sw…"` events. Their recipes, variants, node limits,
 envelope translation, and synthesis remain owned by the SuperCollider adapter.
+`swKick` supplies the recipe's 55 Hz default; a later `# freq ...` overrides it.
+Kick variants are `natural` (deep electronic), `rough`, and `acoustic`.
 
 ## Persistent voices
 

@@ -92,11 +92,42 @@ SwarmSynthDefs {
 		});
 	}
 
+	*kick { |name|
+		^SynthDef(name, { |out=0, freq=55, amp=0.1, duration=0.4, pan=0,
+			attack=0.002, detune=0, sweepRatio=3.5, sweepTime=0.045,
+			drive=1, nyquistMode=2, decayScale=1, attackScale=1,
+			detuneOffset=0, sweepRatioScale=1, sweepTimeScale=1|
+			var safeDuration, safeAttack, safeSweepTime, tuned, swept;
+			var policy, env, sig, safeDrive;
+			safeDuration = (duration * decayScale.clip(0.01, 4)).clip(0.002, 240);
+			safeAttack = (attack * attackScale.clip(0.05, 20))
+				.clip(0.0001, safeDuration - 0.0001);
+			safeSweepTime = (sweepTime * sweepTimeScale.clip(0.01, 8))
+				.clip(0.0001, safeDuration);
+			tuned = (freq * (1 + (detune + detuneOffset).clip(-0.99, 4))).max(0.001);
+			swept = XLine.kr(
+				(tuned * (sweepRatio * sweepRatioScale).clip(0.01, 32)).max(0.001),
+				tuned,
+				safeSweepTime
+			);
+			policy = SwarmMath.frequencyPolicy(swept, SampleRate.ir, nyquistMode);
+			env = EnvGen.kr(
+				Env.perc(safeAttack, (safeDuration - safeAttack).max(0.0001), curve: -5),
+				doneAction: 2
+			);
+			safeDrive = drive.clip(0.1, 20);
+			sig = SinOsc.ar(policy[0], 0, amp * policy[1]);
+			sig = (sig * safeDrive).tanh / safeDrive.sqrt;
+			Out.ar(out, Pan2.ar(sig * env, pan.clip(-1, 1)));
+		});
+	}
+
 	*install {
 		this.partial(\swarm_partial).add;
 		this.sustained(\swarm_sustained).add;
 		this.pad(\swarm_pad).add;
 		this.chip(\swarm_chip).add;
+		this.kick(\swarm_kick).add;
 		^this;
 	}
 }

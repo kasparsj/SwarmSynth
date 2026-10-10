@@ -103,6 +103,7 @@ list::
 ## code::spectrumAdaptation:: — function receiving a prepared SwarmMath after a non-original ratio recipe is installed. Without it, code::freq:: becomes code::SwarmMath.freqRatio::.
 ## code::frequencyInterpretation:: — function receiving captured node values and returning the generated frequency displayed by SwarmPartialPlotData.
 ## code::defaultNyquistPolicy:: — inherited code::\none::, code::\fold::, code::\mute::, or code::\taper:: policy when captured controls do not choose one.
+## code::defaultDuration:: — initial Single/Repeat/Phrase duration; defaults to two seconds when omitted.
 ## code::releaseKey:: and code::releaseTime:: — single-mode release lookup and fallback.
 ## code::preservePhasePan:: — retain existing node phase and pan across connected phrase attacks. Sustained live updates retain phase and pan independently.
 ## code::auditionGate:: — override the registered instrument gate behavior for audition playback.

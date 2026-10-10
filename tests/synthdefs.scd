@@ -13,7 +13,8 @@ try {
 		[\swarmPartialProbe, { SwarmSynthDefs.partial(\swarmPartialProbe) }],
 		[\swarmSustainedProbe, { SwarmSynthDefs.sustained(\swarmSustainedProbe) }],
 		[\swarmPadProbe, { SwarmSynthDefs.pad(\swarmPadProbe) }],
-		[\swarmChipProbe, { SwarmSynthDefs.chip(\swarmChipProbe) }]
+		[\swarmChipProbe, { SwarmSynthDefs.chip(\swarmChipProbe) }],
+		[\swarmKickProbe, { SwarmSynthDefs.kick(\swarmKickProbe) }]
 	].do { |entry|
 		check.(SynthDescLib.global.at(entry[0]).isNil,
 			"Builder probe % was already registered".format(entry[0]));
@@ -39,7 +40,7 @@ try {
 		SwarmSynthDefs.chip(\sameChip));
 
 	SwarmSynthDefs.install;
-	[\swarm_partial, \swarm_sustained, \swarm_pad, \swarm_chip].do { |name|
+	[\swarm_partial, \swarm_sustained, \swarm_pad, \swarm_chip, \swarm_kick].do { |name|
 		check.(SynthDescLib.global.at(name).notNil,
 			"install omitted canonical %".format(name));
 	};
@@ -59,7 +60,10 @@ try {
 			\detunef, \phase, \phasef, \pulse, \pulsef, \pulsew, \saw,
 			\sawf, \mod, \modf, \foldNyquist, \nyquistMode],
 		swarm_chip: [\out, \freq, \detune, \duration, \amp, \pan, \phase,
-			\foldNyquist, \nyquistMode]
+			\foldNyquist, \nyquistMode],
+		swarm_kick: [\out, \freq, \amp, \duration, \pan, \attack, \detune,
+			\sweepRatio, \sweepTime, \drive, \nyquistMode, \decayScale,
+			\attackScale, \detuneOffset, \sweepRatioScale, \sweepTimeScale]
 	);
 	expected.keysValuesDo { |name, names|
 		var actual = SynthDescLib.global.at(name).controls.collect(_.name);

@@ -1,6 +1,6 @@
 // Composition-independent, finite additive spectra. No server-side effects.
 SwarmInstruments {
-	*names { ^[\flute, \clarinet, \organ, \marimba, \bell] }
+	*names { ^[\flute, \clarinet, \organ, \marimba, \bell, \kick] }
 
 	*prProfile { |name|
 		^switch(name,
@@ -51,21 +51,77 @@ SwarmInstruments {
 				description: "Generic inharmonic bell; base pitch is a reference, not its lowest mode.",
 				articulation: "Retrigger and let independent modal tails overlap."
 			) },
+			\kick, { (
+				register: [24, 48], label: "Kick",
+				description: "Pitch-swept additive kick with electronic, rough, and acoustic-like recipes.",
+				articulation: "Retrigger each hit; self-freeing partial tails may overlap."
+			) },
 			{ Error("SwarmInstruments: unknown instrument %".format(name)).throw }
 		);
 	}
 
 	*metadata { |name|
-		var profile = this.prProfile(name), held = profile[\sustain].first > 0;
+		var profile = this.prProfile(name), kick = name == \kick;
+		var held = kick.not and: { profile[\sustain].first > 0 };
 		^(
 			label: profile[\label].copy, register: profile[\register].copy,
 			description: profile[\description].copy, articulation: profile[\articulation].copy,
-			auditionGate: held, releaseKey: \release,
-			releaseTime: if (held) { profile[\release].maxItem * 1.3 } {
-				profile[\decay].maxItem * 1.25 + 0.01
+			auditionGate: held, releaseKey: if(kick) { \duration } { \release },
+			releaseTime: if (kick) { 0.4 } {
+				if (held) { profile[\release].maxItem * 1.3 } {
+					profile[\decay].maxItem * 1.25 + 0.01
+				}
 			},
+			defaultDuration: if (kick) { 0.4 } { nil },
+			synthDef: if (kick) { \swarm_kick } { \swarm_partial },
 			defaultNyquistPolicy: \mute, descriptors: []
 		).deepCopy;
+	}
+
+	*prKickVariants {
+		var variants = IdentityDictionary.new;
+		var definitions = (
+			natural: (
+				ratios: [1, 2, 3, 4, 6], weights: [1, 0.22, 0.1, 0.045, 0.02],
+				attacks: [0.0025, 0.0018, 0.0012, 0.0008, 0.0005],
+				durations: [0.4, 0.16, 0.085, 0.055, 0.035],
+				detunes: [0, 0, 0, 0, 0], sweeps: [3.8, 2.5, 1.8, 1.4, 1.15],
+				sweepTimes: [0.05, 0.035, 0.025, 0.018, 0.012], drive: 1
+			),
+			rough: (
+				ratios: [1, 2, 3, 4, 6], weights: [1, 0.34, 0.23, 0.14, 0.08],
+				attacks: [0.0015, 0.001, 0.0008, 0.0006, 0.0004],
+				durations: [0.42, 0.2, 0.13, 0.09, 0.06],
+				detunes: [0, 0.012, -0.018, 0.028, -0.035], sweeps: [4.5, 2.8, 2.1, 1.6, 1.25],
+				sweepTimes: [0.055, 0.04, 0.03, 0.022, 0.015], drive: 4
+			),
+			acoustic: (
+				ratios: [1, 1.47, 2.08, 2.72, 3.91], weights: [1, 0.42, 0.28, 0.17, 0.1],
+				attacks: [0.003, 0.0018, 0.0012, 0.0008, 0.0005],
+				durations: [0.38, 0.25, 0.18, 0.12, 0.075],
+				detunes: [0, 0.006, -0.009, 0.013, -0.016], sweeps: [2.8, 1.7, 1.4, 1.2, 1.08],
+				sweepTimes: [0.035, 0.025, 0.019, 0.014, 0.01], drive: 1.35
+			)
+		);
+		definitions.keysValuesDo { |variant, definition|
+			var weights = definition[\weights] / definition[\weights].sum;
+			var args = (
+				ratio: { |e| definition[\ratios].at(e.p) ? e.p1 },
+				freq: { |e| SwarmMath.freqRatio(e) },
+				amp: { |e| (weights.at(e.p) ? 0) * e.vol / e.variations.max(1) },
+				duration: 0.4, attack: definition[\attacks].first,
+				detune: 0, sweepRatio: definition[\sweeps].first,
+				sweepTime: definition[\sweepTimes].first, drive: definition[\drive],
+				decayScale: { |e| definition[\durations].clipAt(e.p) / definition[\durations].maxItem },
+				attackScale: { |e| definition[\attacks].clipAt(e.p) / definition[\attacks].first },
+				detuneOffset: { |e| definition[\detunes].clipAt(e.p) },
+				sweepRatioScale: { |e| definition[\sweeps].clipAt(e.p) / definition[\sweeps].first },
+				sweepTimeScale: { |e| definition[\sweepTimes].clipAt(e.p) / definition[\sweepTimes].first },
+				out: 0, pan: 0, nyquistMode: 2
+			);
+			variants[variant] = (args: args, partials: definition[\ratios].size, variations: 1);
+		};
+		^variants;
 	}
 
 	*prVariants { |profile|
@@ -95,9 +151,16 @@ SwarmInstruments {
 		^variants;
 	}
 
-	*make { |name, freqs=#[440], amp=0.1, variant=\natural|
-		var profile = this.prProfile(name), variants = this.prVariants(profile);
-		var selected = variants[variant], held = profile[\sustain].first > 0, state;
+	*variants { |name|
+		var profile = this.prProfile(name);
+		^(if (name == \kick) { this.prKickVariants } { this.prVariants(profile) }).deepCopy;
+	}
+
+	*make { |name, freqs=nil, amp=0.1, variant=\natural|
+		var profile = this.prProfile(name), variants = this.variants(name);
+		var selected = variants[variant], kick = name == \kick;
+		var held = kick.not and: { profile[\sustain].first > 0 }, state;
+		freqs = freqs ? if (kick) { #[55] } { #[440] };
 		SwarmMath.prFrequencies(freqs);
 		if (SwarmMath.prFiniteNumber(amp).not or: { amp < 0 }) {
 			Error("SwarmInstruments: amp must be a nonnegative finite number").throw;
@@ -106,7 +169,7 @@ SwarmInstruments {
 			Error("SwarmInstruments: unknown variant %".format(variant)).throw;
 		};
 		state = SwarmMath.new(freqs.copy, selected[\partials], 1, selected[\args], amp);
-		^SwarmInstrument.new(\swarm_partial, state, variants, variant,
+		^SwarmInstrument.new(if(kick) { \swarm_kick } { \swarm_partial }, state, variants, variant,
 			hasGate: held, liveSwitch: if (held) { \sustained } { \nextTrigger });
 	}
 }

@@ -6,7 +6,7 @@ var specs = List.new, next, definition = SwarmSynthDefs.partial(\swarm_partial).
 Score.program = "SCSYNTH".getenv;
 Server.default = capture;
 
-SwarmInstruments.names.do { |name|
+SwarmInstruments.names.reject { |name| name == \kick }.do { |name|
 	[\natural, \soft, \bright].do { |variant|
 		specs.add((name: name, variant: variant, label: name.asString ++ "-" ++ variant));
 	};
@@ -15,7 +15,7 @@ specs.add((name: \marimba, variant: \natural, label: "marimba-overlap", overlap:
 specs.add((name: \bell, variant: \natural, label: "bell-overlap", overlap: true));
 specs.add((name: \organ, variant: \natural, label: "organ-route", out: 2));
 specs.add((name: \marimba, variant: \natural, label: "marimba-nyquist", freq: 30000));
-SwarmInstruments.names.do { |name|
+SwarmInstruments.names.reject { |name| name == \kick }.do { |name|
 	specs.add((name: name, variant: \natural, label: name.asString ++ "-listening", phrase: true));
 };
 
@@ -61,7 +61,7 @@ next = {
 		.sort { |a, b| if (a[0][0] == b[0][0]) { a[1] < b[1] } { a[0][0] < b[0][0] } }
 		.collect { |entry| entry[0] });
 	options = ServerOptions.new.numOutputBusChannels_(if(spec[\out].notNil, 4, 2))
-		.numInputBusChannels_(0).blockSize_(64);
+		.numInputBusChannels_(0).blockSize_(64).loadDefs_(false);
 	score.recordNRT(directory +/+ (spec[\label] ++ ".osc"),
 		directory +/+ (spec[\label] ++ ".wav"), nil, 48000, "WAV", "float",
 		options, "SWARM_STANDARD_NRT_OPTIONS".getenv ? "", nil, { |code|

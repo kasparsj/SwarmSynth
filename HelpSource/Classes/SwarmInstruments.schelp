@@ -1,5 +1,5 @@
 CLASS:: SwarmInstruments
-summary:: Ready-to-use additive flute, clarinet, organ, marimba, and bell
+summary:: Ready-to-use additive pitched instruments and a swarm kick
 categories:: Libraries>SwarmSynth
 related:: Classes/SwarmInstrument, Classes/SwarmSynthDefs, Classes/SwarmAudition
 
@@ -22,7 +22,15 @@ emphasizes octaves and fifths. Marimba uses modes at 1:4:10. Bell uses modes at
 0.5:1:1.2:1.5:2:3 and is a generic bell approximation, with its supplied pitch
 as a reference rather than its lowest mode.
 
-Flute, clarinet, and organ are gate-sustained instruments. Marimba and bell
+Kick uses code::\swarm_kick:: and defaults to 55 Hz and 0.4 seconds. Its
+code::natural:: recipe is a deep electronic hit; code::rough:: adds per-partial
+detuning and stronger saturation; code::acoustic:: uses inharmonic modes with
+different decay times. Recipe weights are normalized before the amplitude
+budget is applied. Public duration, attack, detune, sweep ratio, sweep time,
+and drive controls affect the next trigger; private per-partial scales retain
+each recipe's independent envelopes and pitch motion.
+
+Flute, clarinet, and organ are gate-sustained instruments. Marimba, bell, and kick
 are self-freeing strikes whose next trigger may overlap an earlier tail.
 All instruments use centered pan, deterministic phase, one variation, and
 the code::\mute:: Nyquist policy by default.
@@ -34,8 +42,16 @@ after installing or changing SwarmSynth classes.
 CLASSMETHODS::
 
 METHOD:: names
-Returns the five collection names in stable order: code::flute::,
-code::clarinet::, code::organ::, code::marimba::, and code::bell::.
+Returns the six collection names in stable order: code::flute::,
+code::clarinet::, code::organ::, code::marimba::, code::bell::, and code::kick::.
+
+METHOD:: variants
+Returns a defensive copy of the named instrument's complete recipe dictionary.
+Pitched instruments expose code::natural::, code::soft::, and code::bright::;
+kick exposes code::natural::, code::rough::, and code::acoustic::.
+
+argument:: name
+One of the symbols returned by code::names::.
 
 METHOD:: metadata
 Returns a defensive metadata copy for an instrument.
@@ -58,14 +74,16 @@ argument:: name
 One of the symbols returned by code::names::.
 
 argument:: freqs
-One or more positive base frequencies in Hz. Defaults to code::#[440]::.
+One or more positive base frequencies in Hz. Defaults to code::#[440]:: for
+pitched instruments and code::#[55]:: for kick.
 
 argument:: amp
 Amplitude budget for each base frequency. Defaults to code::0.1::.
 
 argument:: variant
-Initial timbre variant. Must be code::\natural::, code::\soft::, or
-code::\bright::. Defaults to code::\natural::.
+Initial timbre variant. Pitched instruments accept code::\natural::,
+code::\soft::, or code::\bright::. Kick accepts code::\natural::,
+code::\rough::, or code::\acoustic::. Defaults to code::\natural::.
 
 EXAMPLES::
 
@@ -126,4 +144,17 @@ code::
 // See examples/standard-instruments-audition.scd for local registry ownership
 // and the SwarmAudition GUI. The GUI clears tails on retrigger for isolation;
 // use the listening example for overlapping SwarmInstrument strikes.
+::
+
+subsection:: Kick controls
+
+code::
+~kick = SwarmInstruments.make(\kick, amp: 0.1);
+~kick.play; // natural / Deep Electronic at 55 Hz
+~kick.setVariant(\rough);
+~kick.play((freq: 48, duration: 0.5, drive: 5));
+~kick.setVariant(\acoustic);
+~kick.play((attack: 0.004, sweepRatio: 2.4, sweepTime: 0.03));
+~kick.dispose;
+// See examples/kick.scd and output/kick/ for offline listening renders.
 ::

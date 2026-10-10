@@ -71,13 +71,13 @@ def main() -> None:
         if (result.returncode or "ERROR:" in result.stdout
                 or "PASS: SwarmDirt standard-instrument NRT renders" not in result.stdout):
             raise SystemExit(result.returncode or 1)
-        for name in ("flute", "clarinet", "organ", "marimba", "bell"):
+        for name in ("flute", "clarinet", "organ", "marimba", "bell", "kick"):
             samples = support.float_samples(runtime / f"render/swarm-dirt-{name}.wav")
             if max(map(abs, samples), default=0) < 1e-5:
                 raise AssertionError(f"SwarmDirt {name} NRT render was silent")
             if max(map(abs, samples[-9600:]), default=0) > 1e-8:
                 raise AssertionError(f"SwarmDirt {name} NRT render did not finish its tail")
-    print("PASS: SwarmDirt fake lifecycle, real SuperDirt registration, and five finite NRT renders")
+    print("PASS: SwarmDirt fake lifecycle, real SuperDirt registration, and six finite NRT renders")
 
 
 if __name__ == "__main__":

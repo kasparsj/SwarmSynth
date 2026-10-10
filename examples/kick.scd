@@ -1,33 +1,22 @@
+// Shared additive kick. Evaluate after recompiling the SwarmSynth classes.
 (
-SynthDef(\kick1, { |freq=50, pan=0, amp=1, out=0|
-    var snd;
-    snd = DC.ar(0);
-    snd = snd + (SinOsc.ar(XLine.ar(800, 400, 0.01)) * Env.perc(0.0005, 0.01).ar);
-    snd = snd + (BPF.ar(Hasher.ar(Sweep.ar), XLine.ar(800, 100, 0.01), 0.6) * Env.perc(0.001, 0.02).delay(0.001).ar);
-    snd = snd + (SinOsc.ar(XLine.ar(freq*3, freq, 0.01)) * Env.perc(0.0001, 0.3, 1, \lin).delay(0.005).ar(2));
-    snd = snd.tanh;
-    Out.ar(out, Pan2.ar(snd, pan, amp));
-}).add;
-)
+s.waitForBoot {
+	SwarmSynthDefs.install;
+	s.sync;
 
-(
-var m = SwarmMath.new([51], 1, 2, [
-	freq: { |e| SwarmMath.freqPartial(e) + e.v*2 },
-	// amp: { |e| 1.0/e.size*0.5 },
-	amp: { |e| SwarmMath.ampPartialRec(e) * 0.05 },
-	// amp: { |e| SwarmMath.ampPartialRecMod(e, 2, 0, 1) },
-	detune: 0,
-	phase: { |e| e.v*4pi },
-	pan: 0,
-]);
-// todo: Pbind
-if (~kick.isNil) {
-	~kick = SwarmSynth.new(\kick1, [\fadeTime, 3]);
-	~kick.xset(m);
-} {
-	~kick.rampTo(m, 0.3);
-	// ~kick.xset(m);
+	~kick = SwarmInstruments.make(\kick, amp: 0.1);
+	~kick.play; // Deep Electronic (natural), 55 Hz, 0.4 seconds.
+
+	Routine {
+		0.6.wait;
+		~kick.setVariant(\rough);
+		~kick.play((freq: 50, drive: 5));
+		0.6.wait;
+		~kick.setVariant(\acoustic);
+		~kick.play((freq: 60, duration: 0.5));
+	}.play;
 };
 )
 
-~kick.params
+// Stop early and remove owned playback:
+// ~kick.dispose;

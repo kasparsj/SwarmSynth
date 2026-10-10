@@ -4,7 +4,7 @@ CATEGORIES:: Libraries>SwarmSynth
 RELATED:: Classes/SwarmMath, Classes/SwarmSynth
 
 DESCRIPTION::
-Builds the standard sine partial, sustained, pad, and chip graphs used with
+Builds the standard sine partial, sustained, pad, chip, and kick graphs used with
 SwarmSynth. Builders return SynthDef objects without registering them or
 starting a server. Call code::.add:: on a returned definition, or use
 code::install:: for the canonical library names.
@@ -44,9 +44,21 @@ is applied after detuning.
 ARGUMENT:: name
 SynthDef name.
 
+METHOD:: kick
+Builds a self-freeing, pitch-swept sine-partial kick voice. A SwarmInstrument
+creates one voice per recipe partial, so each partial receives independent
+envelope, detune, and sweep scaling. Public controls are code::freq::,
+code::amp::, code::duration::, code::pan::, code::attack::, code::detune::,
+code::sweepRatio::, code::sweepTime::, code::drive::, and code::nyquistMode::.
+The frequency policy is applied to the moving oscillator frequency. Duration is
+clipped to 0.002–240 seconds; other synthesis controls are bounded before use.
+
+ARGUMENT:: name
+SynthDef name.
+
 METHOD:: install
 Registers code::swarm_partial::, code::swarm_sustained::, code::swarm_pad::,
-and code::swarm_chip:: in SynthDescLib and sends them to running servers using
+code::swarm_chip::, and code::swarm_kick:: in SynthDescLib and sends them to running servers using
 SynthDef's normal code::.add:: behavior. It does not boot a server.
 
 EXAMPLES::

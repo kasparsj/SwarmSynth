@@ -92,6 +92,10 @@ testControlWireNames = do
           # swPulseFreq 3
           # swSaw 0.25
           # swSawFreq 5
+          # swKickSweepRatio 7
+          # swKickSweepTime 0.03
+          # swKickAttack 0.002
+          # swKickDrive 1.5
   assertValue "swInstrument" (VS "flute") controls
   assertValue "swVoiceId" (VI 7) controls
   assertValue "swVariant" (VS "breathy") controls
@@ -121,12 +125,17 @@ testControlWireNames = do
   assertValue "swPulseFreq" (VF 3) controls
   assertValue "swSaw" (VF 0.25) controls
   assertValue "swSawFreq" (VF 5) controls
+  assertValue "swKickSweepRatio" (VF 7) controls
+  assertValue "swKickSweepTime" (VF 0.03) controls
+  assertValue "swKickAttack" (VF 0.002) controls
+  assertValue "swKickDrive" (VF 1.5) controls
 
 testStandardSounds :: IO ()
 testStandardSounds = do
-  let expected = ["swFlute", "swClarinet", "swOrgan", "swMarimba", "swBell"]
-      actual = map soundName [swFlute, swClarinet, swOrgan, swMarimba, swBell]
+  let expected = ["swFlute", "swClarinet", "swOrgan", "swMarimba", "swBell", "swKick"]
+      actual = map soundName [swFlute, swClarinet, swOrgan, swMarimba, swBell, swKick]
   assert (actual == expected) "standard sound helper names changed"
+  assertValue "freq" (VF 55) (singleMap "kick default" swKick)
   where
     soundName pat =
       case Map.lookup "s" $ singleMap "standard sound" pat of

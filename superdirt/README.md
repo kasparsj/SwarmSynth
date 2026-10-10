@@ -11,10 +11,11 @@ The core SwarmSynth classes and Haskell companion work without SuperDirt. Load
 
 Wait for the server to receive the definitions before playing. In a Routine,
 `~dirt.server.sync` provides that barrier. The example under `examples/` installs
-flute, clarinet, organ, marimba and bell without any Pagrabs files. Registrations
-are `swFlute`, `swClarinet`, `swOrgan`, `swMarimba`, `swBell`; variants are
-`natural`, `soft`, `bright`. Import `Sound.Tidal.SwarmSynth` using the companion
-[installation guide](../tidal/README.md).
+flute, clarinet, organ, marimba, bell and kick without any Pagrabs files.
+Registrations are `swFlute`, `swClarinet`, `swOrgan`, `swMarimba`, `swBell`,
+`swKick`. The melodic recipes use `natural`, `soft`, and `bright`; kick uses
+`natural` (deep electronic), `rough`, and `acoustic`. Import
+`Sound.Tidal.SwarmSynth` using the companion [installation guide](../tidal/README.md).
 
 ## Registration and ownership
 
@@ -29,6 +30,9 @@ Registration copies state, variants and default parameters. It borrows no
 running player. `releaseTime` is a conservative bound on the recipe's release
 tail; choose it to cover every registered variant. Spectral functions remain in
 SuperCollider. Haskell sends recipe names and numerical shaping controls.
+Calling `registerStandardInstruments` keeps registrations already owned by the
+same manager, so a project-specific `swKick` and its catalog remain active while
+the other standard sounds are added.
 
 An independent note expands through `playInside`, inside Dirt's existing OSC
 bundle. Every partial targets the event's synth group and output bus. Partial
@@ -95,6 +99,8 @@ Universal controls: `swPartials`, `swVariations`, `swVariant`, `swSeed`,
 `swPhase`, `swPhaseFreq`, `swPanFreq`, `swRampSeconds`. Graph-specific shaping:
 `swPulse`, `swPulseFreq`, `swSaw`, `swSawFreq`, `swVowel`, `swVibratoSpeed`,
 `swVibratoDepth`, `swLPF`, `swHPF`, `swSweepRatio`, `swComb1`, `swComb2`.
+Kick-specific shaping: `swKickSweepRatio`, `swKickSweepTime`, `swKickAttack`,
+`swKickDrive`; the universal `swDetune` control also applies to the kick.
 Controls only affect recipes/graphs that consume the corresponding parameter.
 
 ## Verification

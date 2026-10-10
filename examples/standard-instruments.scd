@@ -1,4 +1,4 @@
-// Standalone phrases and natural/soft/bright comparisons.
+// Standalone phrases, pitched natural/soft/bright comparisons, and kick recipes.
 // Evaluate the whole block. Use ~standardInstrumentCleanup.value to stop.
 (
 ~standardInstrumentCleanup !? { |cleanup| cleanup.value };
@@ -58,7 +58,7 @@ s.waitForBoot {
         // Each variant gets the same short phrase for direct comparison.
         [\natural, \soft, \bright].do { |variant|
             ("SwarmInstruments variant: " ++ variant).postln;
-            names.do { |name|
+            names.reject { |name| name == \kick }.do { |name|
                 var voice = ~standardInstrumentVoices[name];
                 voice.setVariant(variant);
                 if (SwarmInstruments.metadata(name)[\auditionGate]) {
@@ -73,6 +73,17 @@ s.waitForBoot {
             };
             0.6.wait;
         };
+
+		[\natural, \rough, \acoustic].do { |variant|
+			var voice = ~standardInstrumentVoices[\kick];
+			("SwarmInstruments kick: " ++ variant).postln;
+			voice.setVariant(variant);
+			4.do {
+				voice.play((freq: 55, amp: 0.1, duration: 0.4));
+				0.5.wait;
+			};
+			0.4.wait;
+		};
 
         ~standardInstrumentVoices.values.do { |voice| voice.dispose };
         ~standardInstrumentVoices.clear;

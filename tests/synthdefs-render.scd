@@ -86,13 +86,14 @@ try {
 			options = ServerOptions.new
 				.numOutputBusChannels_(spec[\outputChannels] ? 2)
 				.numInputBusChannels_(0)
-				.blockSize_(64);
+				.blockSize_(64)
+				.loadDefs_(false);
 			outputPath = renderDirectory +/+ (spec[\variant].asString ++ "-"
 				++ spec[\label] ++ ".wav");
 			oscPath = renderDirectory +/+ (spec[\variant].asString ++ "-"
 				++ spec[\label] ++ ".osc");
 			score.recordNRT(oscPath, outputPath, nil, 48000, "WAV", "float",
-				options, "", nil, { |exitCode|
+				options, "SWARM_SYNTHDEF_NRT_OPTIONS".getenv ? "", nil, { |exitCode|
 					if (exitCode != 0) {
 						fail.("scsynth failed for %".format(name));
 					} {

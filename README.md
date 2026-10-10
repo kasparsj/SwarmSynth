@@ -17,8 +17,9 @@ installation are explicit in the examples.
   cancellable timed playback, density transitions, and instrument lookup.
 - `SwarmAudition`, `SwarmAuditionGUI`, and `SwarmPartialPlotData`: private
   audition state, Qt controls, and cached generated-input spectrum estimates.
-- `SwarmSynthDefs` and `SwarmInstruments`: reusable synthesis graphs and additive
-  flute, clarinet, organ, marimba, and bell approximations.
+- `SwarmSynthDefs` and `SwarmInstruments`: reusable synthesis graphs; additive
+  flute, clarinet, organ, marimba, and bell approximations; and a pitch-swept
+  swarm kick with deep electronic, rough, and acoustic-like recipes.
 
 Spectrum displays estimate synthesis inputs. Modulation, envelopes, filters,
 and nonlinear processing can change the audible spectrum. The instrument
@@ -39,10 +40,12 @@ python3 tests/run-swarm-audition-owner.py
 python3 tests/run-audition-nyquist.py
 python3 tests/run-synthdefs.py
 python3 tests/run-standard-instruments.py
+python3 tests/run-kick.py
 ```
 
 The Nyquist regression and last two commands render offline audio with `scsynth`.
-Standard instrument renders are written to ignored `output/standard-instruments/`. Add `--gui` to
+Standard instrument renders are written to ignored `output/standard-instruments/`; the three
+kick auditions are retained in ignored `output/kick/`. Add `--gui` to
 `run-swarm-audition.py` for the Qt smoke test. Automated checks establish the
 covered contracts and numeric audio behavior, not an artistic audition.
 

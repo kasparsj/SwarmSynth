@@ -3,7 +3,7 @@ var root = "SWARM_DIRT_ROOT".getenv;
 var directory = "SWARM_DIRT_RENDER_DIR".getenv;
 var capture = SwarmDirtRenderServer(\swarmDirtRender, NetAddr("127.0.0.1", 57996));
 var originalServer = Server.default, library, dirt, manager, orbit, dirtEvent;
-var definition, options, names, sounds, durations, render;
+var definitions, options, names, sounds, durations, render;
 
 try {
     Score.program = "SCSYNTH".getenv;
@@ -17,12 +17,13 @@ try {
     orbit = (server: capture, orbitIndex: 0, group: Group.basicNew(capture, 1),
         dryBus: (index: 0), globalEffects: []);
     dirtEvent = (orbit: orbit);
-    definition = SwarmSynthDefs.partial(\swarm_partial).asBytes;
+    definitions = [SwarmSynthDefs.partial(\swarm_partial).asBytes,
+        SwarmSynthDefs.kick(\swarm_kick).asBytes];
     options = ServerOptions.new.numOutputBusChannels_(2)
         .numInputBusChannels_(0).blockSize_(64);
-    names = [\flute, \clarinet, \organ, \marimba, \bell];
-    sounds = [\swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell];
-    durations = [2.0, 2.0, 2.0, 3.0, 7.0];
+    names = [\flute, \clarinet, \organ, \marimba, \bell, \kick];
+    sounds = [\swFlute, \swClarinet, \swOrgan, \swMarimba, \swBell, \swKick];
+    durations = [2.0, 2.0, 2.0, 3.0, 7.0, 2.0];
 
     render = { |index|
         var event, events, score, basename, held, ids;
@@ -34,7 +35,8 @@ try {
         } {
             capture.startCapture;
             capture.scoreTime = 0.01;
-            event = (midinote: 69, out: 0, synthGroup: 1, sustain: 0.4,
+            event = (freq: if(names[index] == \kick) { 55 } { 440 }, out: 0,
+                synthGroup: 1, sustain: 0.4,
                 latency: 0, fadeTime: 0, gain: 1, swSeed: 4312 + index);
             event.use { library.at(sounds[index])[\playInside].value(dirtEvent) };
             held = manager.definitions[sounds[index]][\instrument].hasGate;
@@ -43,7 +45,8 @@ try {
                     .collect { |entry| entry[1][2] };
                 ids.do { |id| capture.events.add([0.41, [\n_set, id, \gate, 0]]) };
             };
-            events = List[[0, [\d_recv, definition]]];
+            events = List.new;
+            definitions.do { |definition| events.add([0, [\d_recv, definition]]) };
             events.addAll(capture.events);
             events.add([durations[index], [\c_set, 0, 0]]);
             score = Score(events.asArray.collect { |entry, order| [entry, order] }

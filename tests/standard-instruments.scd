@@ -32,7 +32,7 @@ variants = [\natural, \soft, \bright];
 nan = Float.from32Bits(16r7FC00000);
 
 try {
-	check.(SwarmInstruments.names == [\flute, \clarinet, \organ, \marimba, \bell],
+	check.(SwarmInstruments.names == [\flute, \clarinet, \organ, \marimba, \bell, \kick],
 		"standard instrument discovery order or names changed");
 	expectError.({ SwarmInstruments.metadata(\missing) }, "missing",
 		"unknown metadata name did not fail descriptively");
@@ -56,6 +56,15 @@ try {
 	check.(metadataAgain[\register] == [48, 84] and: {
 		metadataAgain[\register] != \changedByCaller
 	}, "metadata lookup leaked caller mutations");
+	check.(SwarmInstruments.metadata(\kick)[\defaultDuration] == 0.4 and: {
+		SwarmInstruments.metadata(\kick)[\synthDef] == \swarm_kick
+	}, "kick metadata omitted its duration or canonical SynthDef");
+
+	// Public recipes are defensive copies, including nested args dictionaries.
+	metadata = SwarmInstruments.variants(\kick);
+	metadata[\natural][\args][\drive] = 99;
+	check.(SwarmInstruments.variants(\kick)[\natural][\args][\drive] == 1,
+		"variants lookup leaked caller mutations");
 
 	// Construction is inert and deterministic: no boot, SynthDef install, playback,
 	// callback evaluation side effects, or random-stream advance.
@@ -164,6 +173,46 @@ try {
 		instrument.dispose;
 	};
 
+	// Kick owns a separate self-freeing graph and defaults to 55 Hz without
+	// changing the established 440 Hz default for the five pitched instruments.
+	instrument = SwarmInstruments.make(\kick);
+	check.(instrument.synthDef == \swarm_kick and: { instrument.state.freqs == [55] },
+		"kick did not select swarm_kick at 55 Hz");
+	check.(instrument.variantNames == [\acoustic, \natural, \rough],
+		"kick did not expose its three recipes");
+	check.(instrument.hasGate.not and: { instrument.liveSwitch == \nextTrigger },
+		"kick was not configured as a self-freeing retriggered instrument");
+	[\natural, \rough, \acoustic].do { |variant|
+		var values, weights;
+		instrument.setVariant(variant);
+		values = instrument.state.snapshot([\freq, \amp, \duration, \attack, \detune,
+			\sweepRatio, \sweepTime, \drive, \decayScale, \attackScale,
+			\detuneOffset, \sweepRatioScale, \sweepTimeScale]);
+		check.(values.size == 5 and: { values.every { |record|
+			record[\values].values.every { |value| SwarmMath.prFiniteNumber(value) }
+		} }, "kick % generated invalid controls".format(variant));
+		weights = instrument.state.get(\amp)[0];
+		check.(approx.(weights.sum, 0.1), "kick % weights were not normalized".format(variant));
+		check.(instrument.state.args[\duration] == 0.4 and: {
+			instrument.state.args[\attack].isFunction.not and: {
+				instrument.state.args[\detune].isFunction.not and: {
+					instrument.state.args[\sweepRatio].isFunction.not and: {
+						instrument.state.args[\sweepTime].isFunction.not and: {
+							instrument.state.args[\drive].isFunction.not
+						}
+					}
+				}
+			}
+		}, "kick % public controls were not scalar".format(variant));
+	};
+	instrument.state.putEvent((duration: 0.8, attack: 0.01, detune: 0.02,
+		sweepRatio: 5, sweepTime: 0.08, drive: 2));
+	check.(instrument.state.get(\duration)[0].every(_ == 0.8),
+		"kick duration override did not reach every partial");
+	instrument.dispose;
+	check.(SwarmInstruments.make(\flute).state.freqs == [440],
+		"existing default pitch changed while adding kick");
+
 	// Held voices retain a sustain stage and permit live spectral changes.
 	heldNames.do { |name|
 		instrument = SwarmInstruments.make(name);
@@ -218,7 +267,7 @@ try {
 			"invalid amp % did not fail descriptively".format(invalid));
 	};
 
-	["standard-instruments.scd", "standard-instruments-audition.scd"].do { |file|
+	["standard-instruments.scd", "standard-instruments-audition.scd", "kick.scd"].do { |file|
 		check.(thisProcess.interpreter.compileFile(root +/+ "examples" +/+ file).isKindOf(Function),
 			"Example failed to compile: " ++ file);
 	};

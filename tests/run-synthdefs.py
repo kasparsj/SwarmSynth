@@ -80,6 +80,9 @@ def main() -> None:
         runtime = Path(directory)
         environment = os.environ.copy()
         environment.update({"SCSYNTH": str(SCSYNTH), "SWARM_SYNTHDEF_RENDER_DIR": str(runtime / "renders")})
+        plugins = SCSYNTH.parent / "plugins"
+        if plugins.is_dir():
+            environment["SWARM_SYNTHDEF_NRT_OPTIONS"] = "-U " + str(plugins)
         if project:
             environment["PAGRABS_PROJECT"] = str(project)
         else:

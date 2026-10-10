@@ -12,6 +12,15 @@ d4 $ slow 2 $ n "0 7 5 3" # swMarimba # octave 5 # swPartials 12
 
 d5 $ slow 4 $ n "0 5 9" # swBell # octave 6 # swVariant "bright" # room 0.7
 
+-- Kick defaults to 55 Hz. Select any of its three next-trigger variants.
+d7 $ fast 2 $ swKick
+   # swVariant "<natural rough acoustic>"
+   # swKickSweepRatio 7
+   # swKickSweepTime 0.025
+   # swKickAttack 0.002
+   # swKickDrive 1.25
+   # swDetune 0.01
+
 -- Persistent voice: swHold adds the hold operation and a 16/cycle heartbeat.
 d6 $ swHold
    $ s "swVoice"
